@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-hono
+  namespace: my-app-project
+spec:
+  replicas: 2 
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+        - name: hono-api
+          image: barry303/cluster-api
+          ports:
+            - containerPort: 3000
+          # Kết hợp cả ConfigMap và Secret vào biến môi trường
+          envFrom:
+            - configMapRef:
+                name: app-config
+            - secretRef:
+                name: db-secret  # Thêm dòng này để nhận JWT_SECRET và POSTGRES_PASSWORD
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 15
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+  namespace: my-app-project
+spec:
+  selector:
+    app: backend
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 3000

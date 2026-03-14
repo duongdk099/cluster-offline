@@ -1,0 +1,9 @@
+{
+  "name": "notesaides",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --filter '*' --parallel dev",
+    "build": "pnpm --filter '*' --parallel build"
+  }
+}

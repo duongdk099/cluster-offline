@@ -1,0 +1,23 @@
+{
+    "name": "api",
+    "version": "1.0.0",
+    "main": "src/index.ts",
+    "scripts": {
+        "dev": "bun run --watch src/index.ts",
+        "start": "bun run src/index.ts",
+        "cleanup": "bun run src/cleanup.ts",
+        "db:generate": "drizzle-kit generate",
+        "db:push": "drizzle-kit push"
+    },
+    "dependencies": {
+        "dotenv": "^17.3.1",
+        "drizzle-orm": "^0.45.1",
+        "hono": "^4.12.3",
+        "postgres": "^3.4.8"
+    },
+    "devDependencies": {
+        "@types/bun": "^1.0.0",
+        "@types/node": "^25.3.0",
+        "drizzle-kit": "^0.31.9"
+    }
+}

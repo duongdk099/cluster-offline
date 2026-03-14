@@ -1,0 +1,48 @@
+services:
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    env_file:
+      - ./api/.env.local
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgres://user:password@db:5432/notesdb
+    depends_on:
+      - db
+    volumes:
+      - ./api:/usr/src/app
+      - /usr/src/app/node_modules
+    command: bun run dev
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: notesdb
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  front:
+    build:
+      context: .
+      dockerfile: ./front/Dockerfile
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./front/.env.local
+    environment:
+      - NODE_ENV=development
+    volumes:
+      - ./front:/usr/src/app
+      - /usr/src/app/node_modules
+      - /usr/src/app/.next
+    command: pnpm run dev
+
+volumes:
+  postgres_data:

@@ -1,0 +1,15 @@
+# Ignore root node_modules
+node_modules/
+
+# Environment Variables
+.env
+.env.*
+!.env.example
+
+# IDE/OS
+.vscode/
+.idea/
+.DS_Store
+
+# Workspaces
+*.log

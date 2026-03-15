@@ -4,10 +4,9 @@ metadata:
   name: db-secret
   namespace: my-app-project
 type: Opaque
-data:
-  # Password phải được mã hóa base64 (ví dụ: 'password' -> 'cGFzc3dvcmQ=')
-  POSTGRES_PASSWORD: cGFzc3dvcmQ= 
-  JWT_SECRET: bXktc3VwZXItc2VjcmV0  # Đây là chuỗi 'my-super-secret' đã base64
+stringData:
+  POSTGRES_PASSWORD: CHANGE_ME_STRONG_DB_PASSWORD
+  JWT_SECRET: CHANGE_ME_LONG_RANDOM_JWT_SECRET
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -16,5 +15,8 @@ metadata:
   namespace: my-app-project
 data:
   DB_HOST: postgres-service
+  POSTGRES_USER: postgres
   DB_NAME: my_database
+  API_URL: https://api.notesaides.app
+  API_INTERNAL_URL: http://backend-service
   PORT: "3000"

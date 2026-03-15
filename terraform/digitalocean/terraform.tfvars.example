@@ -1,0 +1,16 @@
+do_token           = "dop_v1_xxx"
+ssh_public_key_path  = "~/.ssh/id_rsa.pub"
+ssh_private_key_path = "~/.ssh/id_rsa"
+
+letsencrypt_email = "you@example.com"
+root_domain       = "notesaides.app"
+api_domain        = "api.notesaides.app"
+
+postgres_password = "ChangeThisToAStrongPassword123!"
+jwt_secret        = "ChangeThisToALongRandomJWTSecretValue"
+
+backend_image  = "barry303/cluster-api:prod-v3"
+frontend_image = "barry303/cluster-front:prod-v1"
+
+region = "fra1"
+size   = "s-1vcpu-2gb"

@@ -1,10 +1,22 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: backend-uploads-pvc
+  namespace: my-app-project
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: backend-hono
   namespace: my-app-project
 spec:
-  replicas: 2 
+  replicas: 1
   selector:
     matchLabels:
       app: backend
@@ -15,7 +27,7 @@ spec:
     spec:
       containers:
         - name: hono-api
-          image: barry303/cluster-api
+          image: barry303/cluster-api:prod-v3
           ports:
             - containerPort: 3000
           # Kết hợp cả ConfigMap và Secret vào biến môi trường
@@ -24,6 +36,9 @@ spec:
                 name: app-config
             - secretRef:
                 name: db-secret  # Thêm dòng này để nhận JWT_SECRET và POSTGRES_PASSWORD
+          volumeMounts:
+            - name: uploads-data
+              mountPath: /usr/src/app/uploads
           readinessProbe:
             httpGet:
               path: /
@@ -43,6 +58,10 @@ spec:
             limits:
               memory: "256Mi"
               cpu: "500m"
+      volumes:
+        - name: uploads-data
+          persistentVolumeClaim:
+            claimName: backend-uploads-pvc
 ---
 apiVersion: v1
 kind: Service

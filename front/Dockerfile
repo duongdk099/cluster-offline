@@ -18,6 +18,12 @@ COPY ./front/package.json ./front/package.json
 
 COPY --from=wasm-builder /image-wasm/pkg ./image-wasm/pkg
 
+# Public client envs must be available during build for Next.js client bundles.
+ARG NEXT_PUBLIC_API_URL=http://localhost:3001
+ARG NEXT_PUBLIC_WS_URL=ws://localhost:3001/ws
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL
+
 # Install workspace dependencies properly
 RUN pnpm install
 

@@ -1,0 +1,39 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: api-db-migrate
+  namespace: my-app-project
+spec:
+  backoffLimit: 10
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: migrate
+          image: barry303/cluster-api:prod-v3
+          envFrom:
+            - configMapRef:
+                name: app-config
+            - secretRef:
+                name: db-secret
+          command:
+            - /bin/sh
+            - -c
+            - |
+              export DATABASE_URL="$(bun -e 'const u = process.env.POSTGRES_USER || "postgres"; const p = encodeURIComponent(process.env.POSTGRES_PASSWORD || ""); const h = process.env.DB_HOST || "postgres-service"; const d = process.env.DB_NAME || "my_database"; process.stdout.write(`postgres://${u}:${p}@${h}:5432/${d}`);')"
+              i=1
+              while [ "$i" -le 60 ]; do
+                bun -e "import net from 'node:net'; const s = net.createConnection({ host: process.env.DB_HOST, port: 5432 }); s.on('connect', () => { s.end(); process.exit(0); }); s.on('error', () => process.exit(1)); setTimeout(() => process.exit(1), 2000);"
+                if [ $? -eq 0 ]; then
+                  echo "Postgres is reachable, starting migration..."
+                  break
+                fi
+                if [ "$i" -eq 60 ]; then
+                  echo "Postgres is not reachable after 120s"
+                  exit 1
+                fi
+                echo "Waiting for Postgres... attempt $i/60"
+                sleep 2
+                i=$((i + 1))
+              done
+              bun run db:push

@@ -5,7 +5,7 @@ import { Sidebar } from '@/components/Sidebar';
 import { formatRelativeTime } from '@/lib/utils';
 import { useDeletedNotes, useRestoreNote, usePermanentDeleteNote } from '@/hooks/useNotes';
 import { useAuth } from '@/contexts/AuthContext';
-import { ArrowLeft, Trash2, RotateCcw, LogOutIcon } from 'lucide-react';
+import { ArrowLeft, Trash2, RotateCcw, LogOutIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 
@@ -16,6 +16,7 @@ export function DeletedWrapper() {
   const restoreNote = useRestoreNote();
   const permanentDeleteNote = usePermanentDeleteNote();
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
+  const [showLeftPanels, setShowLeftPanels] = useState(true);
 
   const handleRestore = async (id: string) => {
     restoreNote.mutate(id, {
@@ -39,7 +40,27 @@ export function DeletedWrapper() {
   };
 
   return (
-    <main className="flex flex-col md:flex-row h-screen w-full bg-background overflow-auto md:overflow-hidden relative">
+    <main className="app-shell">
+      <div className="app-frame flex flex-col w-full overflow-hidden relative">
+      <div className="desktop-window-titlebar hidden md:flex items-center px-4 gap-2">
+        <span className="w-2.5 h-2.5 rounded-full bg-red-400/90" />
+        <span className="w-2.5 h-2.5 rounded-full bg-amber-400/90" />
+        <span className="w-2.5 h-2.5 rounded-full bg-green-400/90" />
+        <span className="ml-3 text-[11px] text-gray-500 font-semibold tracking-wide">
+          Recently Deleted
+        </span>
+        <div className="ml-auto">
+          <button
+            onClick={() => setShowLeftPanels(!showLeftPanels)}
+            className="p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+            title={showLeftPanels ? "Hide panels" : "Show panels"}
+          >
+            {showLeftPanels ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+          </button>
+        </div>
+      </div>
+
+      <div className="w-full flex flex-col md:flex-row overflow-hidden flex-1">
       <div className="md:hidden sticky top-0 z-40 border-b border-apple-border bg-background/90 backdrop-blur-xl px-4 py-3">
         <div className="flex items-center justify-between gap-2">
           <Link href="/" className="p-2 rounded-xl border border-apple-border">
@@ -55,11 +76,13 @@ export function DeletedWrapper() {
           </button>
         </div>
       </div>
-      <div className="hidden md:block">
+      <div className={`app-panel transition-all duration-300 overflow-hidden ${
+        showLeftPanels ? "md:block" : "md:w-0 md:hidden"
+      }`}>
         <Sidebar onNewNote={() => router.push('/notes/new')} onLogout={logout} />
       </div>
 
-      <div className="w-full md:w-[320px] flex flex-col border-b md:border-b-0 md:border-r border-apple-border h-[48vh] md:h-full bg-white dark:bg-black/20 overflow-hidden">
+      <div className="w-full md:w-84 flex flex-col border-b md:border-b-0 md:border-r border-apple-border h-full bg-white dark:bg-black/20 overflow-hidden">
         <div className="h-13 px-4 flex items-center justify-between border-b border-apple-border/50 bg-white/50 dark:bg-black/5 backdrop-blur-md">
           <div className="flex items-center gap-2">
             <Link href="/" className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded transition-colors">
@@ -178,6 +201,8 @@ export function DeletedWrapper() {
             </div>
           )}
         </div>
+      </div>
+      </div>
       </div>
     </main>
   );

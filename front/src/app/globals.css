@@ -4,11 +4,19 @@
 :root {
   --background: #FFFFFF;
   --foreground: #1D1D1F;
+  --app-canvas: #eef1f5;
+  --app-shell: #f8fafc;
+  --panel-bg: rgba(255, 255, 255, 0.84);
+  --panel-elevated: #ffffff;
   --card-bg: #FFFFFF;
   --accent: #FFB300;
   --accent-secondary: #FFD60A;
   --sidebar-bg: #F2F2F7;
   --border: rgba(0, 0, 0, 0.08);
+  --panel-border: rgba(15, 23, 42, 0.08);
+  --shadow-soft: 0 8px 24px rgba(15, 23, 42, 0.07);
+  --shadow-medium: 0 16px 40px rgba(15, 23, 42, 0.1);
+  --mobile-tabbar: rgba(255, 255, 255, 0.9);
   --selection: rgba(255, 179, 0, 0.15);
   --table-bg: rgba(255, 255, 255, 0.8);
   --table-border: #e5e5e5;
@@ -34,17 +42,26 @@
   --color-sidebar-bg: var(--sidebar-bg);
   --color-apple-border: var(--border);
   --color-apple-selection: var(--selection);
+  --color-panel-bg: var(--panel-bg);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #1C1C1E;
     --foreground: #FFFFFF;
+    --app-canvas: #090c12;
+    --app-shell: #10141d;
+    --panel-bg: rgba(22, 28, 40, 0.85);
+    --panel-elevated: #1a2130;
     --card-bg: #2C2C2E;
     --accent: #FFD60A;
     --accent-secondary: #FFB300;
     --sidebar-bg: #1C1C1E;
     --border: rgba(255, 255, 255, 0.12);
+    --panel-border: rgba(255, 255, 255, 0.09);
+    --shadow-soft: 0 8px 20px rgba(0, 0, 0, 0.35);
+    --shadow-medium: 0 18px 36px rgba(0, 0, 0, 0.45);
+    --mobile-tabbar: rgba(16, 20, 29, 0.9);
     --selection: rgba(255, 214, 10, 0.2);
     --table-bg: #2C2C2E;
     --table-border: #3A3A3C;
@@ -63,11 +80,76 @@
 }
 
 body {
-  background: var(--background);
+  background: radial-gradient(circle at 10% 0%, rgba(255, 179, 0, 0.08), transparent 45%), var(--app-canvas);
   color: var(--foreground);
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Inter", system-ui, sans-serif;
+  font-family: "Geist", "SF Pro Text", "SF Pro Display", "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
   letter-spacing: -0.011em;
+}
+
+.app-shell {
+  min-height: 100vh;
+  background: var(--app-canvas);
+  padding: 0.75rem;
+}
+
+.app-frame {
+  height: calc(100vh - 1.5rem);
+  border: 1px solid var(--panel-border);
+  border-radius: 1.25rem;
+  overflow: hidden;
+  background: var(--app-shell);
+  box-shadow: var(--shadow-medium);
+}
+
+.app-panel {
+  background: var(--panel-bg);
+  border-right: 1px solid var(--panel-border);
+  backdrop-filter: blur(22px);
+}
+
+.app-section {
+  background: var(--panel-elevated);
+}
+
+.section-title {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--table-header-color);
+  font-weight: 700;
+}
+
+.desktop-window-titlebar {
+  height: 32px;
+  border-bottom: 1px solid var(--panel-border);
+  background: color-mix(in srgb, var(--panel-bg) 90%, transparent);
+}
+
+.mobile-tabbar {
+  position: fixed;
+  bottom: 0.8rem;
+  left: 0.75rem;
+  right: 0.75rem;
+  border-radius: 1rem;
+  border: 1px solid var(--panel-border);
+  background: var(--mobile-tabbar);
+  backdrop-filter: blur(24px);
+  box-shadow: var(--shadow-soft);
+  z-index: 60;
+}
+
+@media (max-width: 767px) {
+  .app-shell {
+    padding: 0;
+  }
+
+  .app-frame {
+    height: 100vh;
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
+  }
 }
 
 /* ===== PAPER TEXTURE ===== */

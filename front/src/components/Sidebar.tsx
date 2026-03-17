@@ -8,8 +8,7 @@ import {
     SearchIcon,
     LogOutIcon
 } from 'lucide-react';
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import Link from 'next/link';
 import { useDeletedNotes } from '../hooks/useNotes';
 
@@ -21,33 +20,29 @@ interface SidebarProps {
 }
 
 export function Sidebar({ onNewNote, onLogout, searchQuery, onSearchChange }: SidebarProps) {
-    const router = useRouter();
-    const [localQuery, setLocalQuery] = useState('');
+    const [fallbackQuery, setFallbackQuery] = useState('');
     const { data: deletedNotes } = useDeletedNotes();
     const deletedCount = deletedNotes?.length || 0;
-
-    // Debounce search (300ms)
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            if (onSearchChange && localQuery !== searchQuery) {
-                onSearchChange(localQuery);
-            }
-        }, 300);
-
-        return () => clearTimeout(timer);
-    }, [localQuery, onSearchChange, searchQuery]);
+    const query = onSearchChange ? (searchQuery || '') : fallbackQuery;
 
     return (
-        <aside className="w-[260px] h-screen bg-sidebar-bg flex flex-col border-r border-apple-border">
-            <div className="p-4 space-y-6 flex-1 overflow-y-auto pt-12">
+        <aside className="w-68 h-full bg-sidebar-bg flex flex-col">
+            <div className="p-4 space-y-6 flex-1 overflow-y-auto pt-8">
                 {/* Search Bar */}
                 <div className="relative group px-1">
                     <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
                     <input
                         type="text"
                         placeholder="Search"
-                        value={localQuery}
-                        onChange={(e) => setLocalQuery(e.target.value)}
+                        value={query}
+                        onChange={(e) => {
+                            const next = e.target.value;
+                            if (onSearchChange) {
+                                onSearchChange(next);
+                                return;
+                            }
+                            setFallbackQuery(next);
+                        }}
                         className="w-full bg-black/5 dark:bg-white/5 border-none rounded-lg py-1.5 pl-9 pr-4 text-[13px] outline-none transition-all placeholder:text-gray-400"
                     />
                 </div>
@@ -81,7 +76,7 @@ export function Sidebar({ onNewNote, onLogout, searchQuery, onSearchChange }: Si
             </div>
 
             {/* Bottom Toolbar - Apple Style */}
-            <div className="p-2 border-t border-apple-border bg-sidebar-bg/50 backdrop-blur-md flex items-center justify-between">
+            <div className="p-2 border-t border-apple-border bg-sidebar-bg/60 backdrop-blur-md flex items-center justify-between">
                 <button
                     onClick={onLogout}
                     className="p-2 text-gray-500 hover:text-accent transition-colors"

@@ -14,6 +14,10 @@ import {
   ClockIcon,
   LogOutIcon,
   SearchIcon,
+  LayoutGridIcon,
+  ListIcon,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Note } from "@/lib/types";
 
@@ -162,6 +166,8 @@ export default function Home() {
   const router = useRouter();
   const { token, logout } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
+  const [mobileView, setMobileView] = useState<"list" | "overview">("list");
+  const [showLeftPanels, setShowLeftPanels] = useState(true);
   const { data: allNotes = [], isLoading, isError } = useNotes();
   const { data: searchResults, isLoading: isSearching } =
     useSearchNotes(searchQuery);
@@ -174,60 +180,144 @@ export default function Home() {
   const isNotesLoading = searchQuery.trim() ? isSearching : isLoading;
 
   return (
-    <main className="flex flex-col md:flex-row h-screen w-full bg-background overflow-auto md:overflow-hidden relative">
-      <div className="md:hidden sticky top-0 z-40 border-b border-apple-border bg-background/90 backdrop-blur-xl px-4 py-3 space-y-3">
-        <div className="flex items-center justify-between">
-          <h1 className="text-lg font-bold tracking-tight">Notes</h1>
-          <div className="flex items-center gap-2">
+    <main className="app-shell">
+      <div className="app-frame flex flex-col w-full overflow-hidden relative">
+        <div className="desktop-window-titlebar hidden md:flex items-center px-4 gap-2">
+          <span className="w-2.5 h-2.5 rounded-full bg-red-400/90" />
+          <span className="w-2.5 h-2.5 rounded-full bg-amber-400/90" />
+          <span className="w-2.5 h-2.5 rounded-full bg-green-400/90" />
+          <span className="ml-3 text-[11px] text-gray-500 font-semibold tracking-wide">
+            Notes Workspace
+          </span>
+          <div className="ml-auto">
             <button
-              onClick={() => router.push("/notes/new")}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-accent text-white rounded-xl text-sm font-semibold"
+              onClick={() => setShowLeftPanels(!showLeftPanels)}
+              className="p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+              title={showLeftPanels ? "Hide panels" : "Show panels"}
             >
-              <PlusIcon size={15} />
-              New
-            </button>
-            <button
-              onClick={logout}
-              className="p-2 rounded-xl border border-apple-border text-gray-600 dark:text-gray-300"
-              aria-label="Log out"
-            >
-              <LogOutIcon size={16} />
+              {showLeftPanels ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
             </button>
           </div>
         </div>
-        <div className="relative">
-          <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
-          <input
-            type="text"
-            placeholder="Search notes"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-black/5 dark:bg-white/5 border-none rounded-xl py-2 pl-9 pr-4 text-sm outline-none placeholder:text-gray-400"
-          />
+
+        <div className="md:hidden sticky top-0 z-40 border-b border-apple-border bg-background/90 backdrop-blur-xl px-4 py-3 space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="section-title">Workspace</p>
+              <h1 className="text-lg font-bold tracking-tight">Notes</h1>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => router.push("/notes/new")}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-accent text-white rounded-xl text-sm font-semibold"
+              >
+                <PlusIcon size={15} />
+                New
+              </button>
+              <button
+                onClick={logout}
+                className="p-2 rounded-xl border border-apple-border text-gray-600 dark:text-gray-300"
+                aria-label="Log out"
+              >
+                <LogOutIcon size={16} />
+              </button>
+            </div>
+          </div>
+          <div className="relative">
+            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+            <input
+              type="text"
+              placeholder="Search notes"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-black/5 dark:bg-white/5 border-none rounded-xl py-2 pl-9 pr-4 text-sm outline-none placeholder:text-gray-400"
+            />
+          </div>
         </div>
+
+        <div className="w-full flex flex-col md:flex-row overflow-hidden flex-1">
+          <div className={`app-panel transition-all duration-300 overflow-hidden ${
+            showLeftPanels ? "md:block" : "md:w-0 md:hidden"
+          }`}>
+            <Sidebar
+              onNewNote={() => router.push("/notes/new")}
+              onLogout={logout}
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+            />
+          </div>
+
+          <div className={`app-section transition-all duration-300 overflow-hidden ${
+            showLeftPanels ? "md:block" : "md:w-0 md:hidden"
+          }`}>
+            <NoteList
+              notes={notes}
+              isLoading={isNotesLoading}
+              isError={isError}
+              selectedId={undefined}
+              onSelect={(note) => router.push(`/notes/${note.id}`)}
+              searchQuery={searchQuery}
+              onClearSearch={() => setSearchQuery("")}
+            />
+          </div>
+
+          <div className="hidden md:flex flex-1 app-section">
+            <NotesOverview
+              notes={allNotes}
+              onSelect={(note) => router.push(`/notes/${note.id}`)}
+              onNewNote={() => router.push("/notes/new")}
+            />
+          </div>
+
+          <div className="md:hidden flex-1 overflow-hidden pb-24">
+            {mobileView === "list" ? (
+              <NoteList
+                notes={notes}
+                isLoading={isNotesLoading}
+                isError={isError}
+                selectedId={undefined}
+                onSelect={(note) => router.push(`/notes/${note.id}`)}
+                searchQuery={searchQuery}
+                onClearSearch={() => setSearchQuery("")}
+              />
+            ) : (
+              <NotesOverview
+                notes={allNotes}
+                onSelect={(note) => router.push(`/notes/${note.id}`)}
+                onNewNote={() => router.push("/notes/new")}
+              />
+            )}
+          </div>
+        </div>
+
+        <nav className="mobile-tabbar md:hidden px-2 py-2 grid grid-cols-3 gap-1">
+          <button
+            onClick={() => setMobileView("list")}
+            className={`h-10 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors ${
+              mobileView === "list" ? "bg-black text-white dark:bg-white dark:text-black" : "text-gray-500"
+            }`}
+          >
+            <ListIcon size={15} />
+            List
+          </button>
+          <button
+            onClick={() => router.push("/notes/new")}
+            className="h-10 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 bg-accent text-white"
+          >
+            <PlusIcon size={15} />
+            New
+          </button>
+          <button
+            onClick={() => setMobileView("overview")}
+            className={`h-10 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors ${
+              mobileView === "overview" ? "bg-black text-white dark:bg-white dark:text-black" : "text-gray-500"
+            }`}
+          >
+            <LayoutGridIcon size={15} />
+            Home
+          </button>
+        </nav>
       </div>
-      <div className="hidden md:block">
-        <Sidebar
-          onNewNote={() => router.push("/notes/new")}
-          onLogout={logout}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-        />
-      </div>
-      <NoteList
-        notes={notes}
-        isLoading={isNotesLoading}
-        isError={isError}
-        selectedId={undefined}
-        onSelect={(note) => router.push(`/notes/${note.id}`)}
-        searchQuery={searchQuery}
-        onClearSearch={() => setSearchQuery("")}
-      />
-      <NotesOverview
-        notes={allNotes}
-        onSelect={(note) => router.push(`/notes/${note.id}`)}
-        onNewNote={() => router.push("/notes/new")}
-      />
     </main>
   );
 }

@@ -15,7 +15,7 @@ interface NoteListProps {
 export function NoteList({ notes, isLoading, isError, selectedId, onSelect, searchQuery, onClearSearch }: NoteListProps) {
     if (isLoading) {
         return (
-            <div className="w-full md:w-[320px] border-b md:border-b-0 md:border-r border-apple-border h-[42vh] md:h-full bg-white dark:bg-black/20 overflow-hidden">
+            <div className="w-full md:w-84 border-b md:border-b-0 md:border-r border-apple-border h-full bg-white dark:bg-black/20 overflow-hidden">
                 <div className="p-3 pl-12 border-b border-apple-border flex items-center h-13">
                     <div className="h-6 bg-gray-100 dark:bg-white/5 rounded-lg animate-pulse w-full max-w-30" />
                 </div>
@@ -36,7 +36,7 @@ export function NoteList({ notes, isLoading, isError, selectedId, onSelect, sear
 
     if (isError) {
         return (
-            <div className="w-full md:w-[320px] border-b md:border-b-0 md:border-r border-apple-border h-[42vh] md:h-full flex items-center justify-center p-8 text-center bg-white dark:bg-black/20 paper-texture">
+            <div className="w-full md:w-84 border-b md:border-b-0 md:border-r border-apple-border h-full flex items-center justify-center p-8 text-center bg-white dark:bg-black/20 paper-texture">
                 <p className="text-sm text-red-500 font-medium">Failed to load notes.</p>
             </div>
         );
@@ -46,7 +46,7 @@ export function NoteList({ notes, isLoading, isError, selectedId, onSelect, sear
     const showNoResults = hasSearchQuery && notes && notes.length === 0;
 
     return (
-        <div className="w-full md:w-[320px] flex flex-col border-b md:border-b-0 md:border-r border-apple-border h-[42vh] md:h-full bg-white dark:bg-black/20 overflow-hidden">
+        <div className="w-full md:w-84 flex flex-col border-b md:border-b-0 md:border-r border-apple-border h-full bg-white dark:bg-black/20 overflow-hidden">
             {/* Note List Header */}
             <div className="h-13 px-4 flex items-center justify-between border-b border-apple-border/50 bg-white/50 dark:bg-black/5 backdrop-blur-md">
                 <div className="flex items-center gap-2">
@@ -72,7 +72,7 @@ export function NoteList({ notes, isLoading, isError, selectedId, onSelect, sear
                 </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto overflow-x-hidden pt-2 pb-12">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden pt-2 pb-24 md:pb-12">
                 {showNoResults ? (
                     <div className="p-12 text-center space-y-3 opacity-40">
                         <div className="text-4xl">🔍</div>

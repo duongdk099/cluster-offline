@@ -1,44 +1,42 @@
 {
-	"name": "NotesAides Ultimate Dev Env",
-	"image": "mcr.microsoft.com/devcontainers/base:ubuntu",
-	"features": {
-		"ghcr.io/devcontainers/features/node:1": {
-			"version": "20"
-		},
-		"ghcr.io/devcontainers/features/rust:1": {
-			"version": "latest"
-		},
-		"ghcr.io/devcontainers/features/docker-compose:1": {},
-		"ghcr.io/devcontainers-contrib/features/bun:1": {}
-	},
-	"customizations": {
-		"vscode": {
-			"extensions": [
-				"oven.bun-vscode",
-				"rust-lang.rust-analyzer",
-				"bradlc.vscode-tailwindcss",
-				"esbenp.prettier-vscode",
-				"mtxr.sqltools",
-				"mtxr.sqltools-driver-pg",
-				"tamasfe.even-better-toml"
-			]
-		}
-	},
-	"remoteEnv": {
-		"DATABASE_URL": "postgres://postgres:postgres@localhost:5432/notes_aides"
-	},
-	"onCreateCommand": "pnpm install && cd api && bun install && rustup target add wasm32-unknown-unknown",
-	"postStartCommand": "docker-compose up -d db",
-	"forwardPorts": [3000, 3001, 5432],
-	"portsAttributes": {
-		"3001": {
-			"label": "Hono API",
-			"onAutoForward": "notify",
-			"visibility": "public"
-		},
-		"3000": {
-			"label": "Next.js Frontend",
-			"onAutoForward": "openPreview"
-		}
-	}
+  "name": "NotesAides Ultimate Codespace",
+  "image": "mcr.microsoft.com/devcontainers/universal:2", // Image này có sẵn cả Node, Bun, Docker, Rust
+  "features": {
+    // Chỉ giữ lại những thứ cần update bản mới nhất
+    "ghcr.io/devcontainers-contrib/features/bun:1": {}
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "oven.bun-vscode",
+        "rust-lang.rust-analyzer",
+        "bradlc.vscode-tailwindcss",
+        "esbenp.prettier-vscode",
+        "mtxr.sqltools",
+        "mtxr.sqltools-driver-pg",
+        "tamasfe.even-better-toml"
+      ]
+    }
+  },
+  "remoteEnv": {
+    "DATABASE_URL": "postgres://postgres:postgres@localhost:5432/notes_aides"
+  },
+  // Chạy các lệnh cài đặt sau khi container dựng xong
+  "onCreateCommand": "pnpm install && cd api && bun install && rustup target add wasm32-unknown-unknown",
+  
+  // Dựng DB ngay khi bật máy
+  "postStartCommand": "docker compose up -d db",
+  
+  "forwardPorts": [3000, 3001, 5432],
+  "portsAttributes": {
+    "3001": {
+      "label": "Hono API",
+      "onAutoForward": "notify",
+      "visibility": "public" 
+    },
+    "3000": {
+      "label": "Next.js Frontend",
+      "onAutoForward": "openPreview"
+    }
+  }
 }

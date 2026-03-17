@@ -15,6 +15,7 @@ import { Note } from '../lib/types';
 import { optimizeImage, cropImage, rotateImage } from '../lib/imageOptimizer';
 import { useAuth } from '../contexts/AuthContext';
 import type { JSONContent } from '@tiptap/core';
+import { normalizeUploadedImageUrl } from '../lib/utils';
 
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'optimizing' | 'cropping' | 'rotating';
 
@@ -22,6 +23,26 @@ interface UseNoteEditorProps {
     note?: Note | null;
     onSave: (note: { title: string; content: JSONContent }) => void;
     isPending: boolean;
+}
+
+function normalizeContentImageUrls(content: JSONContent): JSONContent {
+    const next: JSONContent = {
+        ...content,
+        attrs: content.attrs
+            ? {
+                ...content.attrs,
+                ...(typeof content.attrs.src === 'string'
+                    ? { src: normalizeUploadedImageUrl(content.attrs.src) }
+                    : {}),
+            }
+            : content.attrs,
+    };
+
+    if (content.content) {
+        next.content = content.content.map((child) => normalizeContentImageUrls(child));
+    }
+
+    return next;
 }
 
 export function useNoteEditor({ note, onSave, isPending }: UseNoteEditorProps) {
@@ -125,7 +146,7 @@ export function useNoteEditor({ note, onSave, isPending }: UseNoteEditorProps) {
             TableCell,
             ResizableImage.configure({ inline: true, allowBase64: true }),
         ],
-        content: note?.content || '',
+        content: note?.content ? normalizeContentImageUrls(note.content) : '',
         onUpdate: ({ editor: e }) => {
             editorRef.current = e;
             triggerAutoSaveRef.current();
@@ -193,7 +214,7 @@ export function useNoteEditor({ note, onSave, isPending }: UseNoteEditorProps) {
             if (!response.ok) throw new Error('Upload failed');
 
             const data = await response.json();
-            const timestampUrl = `${data.url}?v=${Date.now()}`;
+            const timestampUrl = `${normalizeUploadedImageUrl(data.url)}?v=${Date.now()}`;
             editor.chain().focus().setImage({ src: timestampUrl }).run();
             setSaveStatus('saved');
         } catch (error) {
@@ -223,7 +244,7 @@ export function useNoteEditor({ note, onSave, isPending }: UseNoteEditorProps) {
             if (!response.ok) throw new Error('Crop upload failed');
 
             const data = await response.json();
-            const timestampUrl = `${data.url}?v=${Date.now()}`;
+            const timestampUrl = `${normalizeUploadedImageUrl(data.url)}?v=${Date.now()}`;
 
             // Replace current selected image in editor
             editor.chain().focus().deleteSelection().setImage({ src: timestampUrl }).run();
@@ -255,7 +276,7 @@ export function useNoteEditor({ note, onSave, isPending }: UseNoteEditorProps) {
             if (!response.ok) throw new Error('Rotate upload failed');
 
             const data = await response.json();
-            const timestampUrl = `${data.url}?v=${Date.now()}`;
+            const timestampUrl = `${normalizeUploadedImageUrl(data.url)}?v=${Date.now()}`;
 
             // Replace current selected image in editor
             editor.chain().focus().deleteSelection().setImage({ src: timestampUrl }).run();
@@ -308,7 +329,7 @@ export function useNoteEditor({ note, onSave, isPending }: UseNoteEditorProps) {
 
         // Load content for this note ID
         if (note?.content) {
-            editor.commands.setContent(note.content);
+            editor.commands.setContent(normalizeContentImageUrls(note.content));
             setTitle(note.title || '');
             titleRef.current = note.title || '';
         }

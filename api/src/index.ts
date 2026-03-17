@@ -11,7 +11,49 @@ import { wsEvents } from './infrastructure/websocket'
 const app = new Hono()
 const { upgradeWebSocket, websocket } = createBunWebSocket()
 
-app.use('*', cors())
+const isProduction = process.env.NODE_ENV === 'production'
+const trustProxyHeaders = process.env.TRUST_PROXY_HEADERS === 'true'
+
+const allowedCorsOrigins = (process.env.CORS_ORIGIN || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+
+function isOriginAllowed(origin: string): boolean {
+    if (allowedCorsOrigins.length === 0) {
+        return !isProduction
+    }
+
+    return allowedCorsOrigins.some((allowed) => {
+        if (allowed === origin) return true
+
+        // Support wildcard host pattern such as https://*.app.github.dev
+        if (allowed.includes('*')) {
+            try {
+                const originUrl = new URL(origin)
+                const allowedUrl = new URL(allowed.replace('*.', 'placeholder.'))
+                if (originUrl.protocol !== allowedUrl.protocol) return false
+                const suffix = allowedUrl.hostname.replace('placeholder.', '')
+                return originUrl.hostname === suffix || originUrl.hostname.endsWith(`.${suffix}`)
+            } catch {
+                return false
+            }
+        }
+
+        return false
+    })
+}
+
+app.use('*', cors({
+    origin: (origin) => {
+        if (!origin) return origin
+        if (isOriginAllowed(origin)) return origin
+        return null
+    },
+    allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
+}))
 
 // Validate required environment variables
 const jwtSecret = process.env.JWT_SECRET
@@ -91,7 +133,17 @@ app.post('/upload', jwt({ secret: jwtSecret, alg: 'HS256' }), async (c) => {
         const bytes = await file.arrayBuffer()
         await Bun.write(filePath, bytes)
 
-        const baseUrl = process.env.API_URL || 'http://localhost:3001'
+        const requestUrl = new URL(c.req.url)
+        const forwardedProto = trustProxyHeaders
+            ? c.req.header('x-forwarded-proto')?.split(',')[0]?.trim()
+            : undefined
+        const forwardedHost = trustProxyHeaders
+            ? c.req.header('x-forwarded-host')?.split(',')[0]?.trim()
+            : undefined
+        const inferredBaseUrl = forwardedHost
+            ? `${forwardedProto || requestUrl.protocol.replace(':', '')}://${forwardedHost}`
+            : `${requestUrl.protocol}//${requestUrl.host}`
+        const baseUrl = process.env.API_URL || inferredBaseUrl
         return c.json({
             url: `${baseUrl}/uploads/${fileName}`
         })

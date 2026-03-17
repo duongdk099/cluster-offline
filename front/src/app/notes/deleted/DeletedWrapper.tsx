@@ -2,18 +2,17 @@
 
 import { useRouter } from 'next/navigation';
 import { Sidebar } from '@/components/Sidebar';
-import { Note } from '@/lib/types';
 import { formatRelativeTime } from '@/lib/utils';
 import { useDeletedNotes, useRestoreNote, usePermanentDeleteNote } from '@/hooks/useNotes';
 import { useAuth } from '@/contexts/AuthContext';
-import { ArrowLeft, Trash2, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Trash2, RotateCcw, LogOutIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 
 export function DeletedWrapper() {
   const router = useRouter();
   const { logout } = useAuth();
-  const { data: deletedNotes = [], isLoading } = useDeletedNotes();
+  const { data: deletedNotes = [] } = useDeletedNotes();
   const restoreNote = useRestoreNote();
   const permanentDeleteNote = usePermanentDeleteNote();
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
@@ -40,13 +39,28 @@ export function DeletedWrapper() {
   };
 
   return (
-    <main className="flex h-screen w-full bg-background overflow-hidden relative">
+    <main className="flex flex-col md:flex-row h-screen w-full bg-background overflow-auto md:overflow-hidden relative">
+      <div className="md:hidden sticky top-0 z-40 border-b border-apple-border bg-background/90 backdrop-blur-xl px-4 py-3">
+        <div className="flex items-center justify-between gap-2">
+          <Link href="/" className="p-2 rounded-xl border border-apple-border">
+            <ArrowLeft size={16} />
+          </Link>
+          <h1 className="text-sm font-bold tracking-wide uppercase text-gray-500">Recently Deleted</h1>
+          <button
+            onClick={logout}
+            className="p-2 rounded-xl border border-apple-border text-gray-600 dark:text-gray-300"
+            aria-label="Log out"
+          >
+            <LogOutIcon size={16} />
+          </button>
+        </div>
+      </div>
       <div className="hidden md:block">
         <Sidebar onNewNote={() => router.push('/notes/new')} onLogout={logout} />
       </div>
 
-      <div className="w-[320px] flex flex-col border-r border-apple-border h-full bg-white dark:bg-black/20 overflow-hidden">
-        <div className="h-[52px] px-4 flex items-center justify-between border-b border-apple-border/50 bg-white/50 dark:bg-black/5 backdrop-blur-md">
+      <div className="w-full md:w-[320px] flex flex-col border-b md:border-b-0 md:border-r border-apple-border h-[48vh] md:h-full bg-white dark:bg-black/20 overflow-hidden">
+        <div className="h-13 px-4 flex items-center justify-between border-b border-apple-border/50 bg-white/50 dark:bg-black/5 backdrop-blur-md">
           <div className="flex items-center gap-2">
             <Link href="/" className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded transition-colors">
               <ArrowLeft size={16} />
@@ -101,7 +115,7 @@ export function DeletedWrapper() {
                   </div>
 
                   {note.id === selectedNoteId && (
-                    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -131,7 +145,7 @@ export function DeletedWrapper() {
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col items-center justify-center p-12 text-center space-y-8 paper-texture">
+      <div className="hidden md:flex flex-1 flex-col items-center justify-center p-12 text-center space-y-8 paper-texture">
         <div className="relative">
           <div className="absolute inset-0 bg-red-500/10 blur-3xl rounded-full" />
           <div className="relative w-32 h-32 bg-zinc-100 dark:bg-zinc-800 rounded-[3rem] flex items-center justify-center shadow-2xl backdrop-blur-sm border border-apple-border">

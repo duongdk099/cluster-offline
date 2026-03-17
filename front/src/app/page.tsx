@@ -1,13 +1,20 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Sidebar } from "@/components/Sidebar";
 import { NoteList } from "@/components/NoteList";
 import { useNotes, useSearchNotes } from "@/hooks/useNotes";
 import { stripHtml, extractFirstImage, formatRelativeTime } from "@/lib/utils";
-import { PlusIcon, FileTextIcon, CalendarIcon, ClockIcon } from "lucide-react";
+import {
+  PlusIcon,
+  FileTextIcon,
+  CalendarIcon,
+  ClockIcon,
+  LogOutIcon,
+  SearchIcon,
+} from "lucide-react";
 import { Note } from "@/lib/types";
 
 function NotesOverview({
@@ -61,17 +68,17 @@ function NotesOverview({
   }
 
   return (
-    <div className="flex-1 flex flex-col h-screen overflow-y-auto paper-texture">
+    <div className="flex-1 flex flex-col h-auto md:h-screen overflow-y-auto paper-texture">
       {/* Header */}
-      <div className="px-10 pt-12 pb-6">
-        <div className="flex items-end justify-between">
+      <div className="px-4 md:px-10 pt-6 md:pt-12 pb-4 md:pb-6">
+        <div className="flex items-end justify-between gap-4">
           <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">
             Overview
           </p>
-          <h2 className="text-3xl font-bold tracking-tight">Your Notes</h2>
+          <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Your Notes</h2>
           <button
             onClick={onNewNote}
-            className="flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-2xl text-sm font-semibold shadow hover:opacity-90 active:scale-95 transition-all"
+            className="hidden md:flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-2xl text-sm font-semibold shadow hover:opacity-90 active:scale-95 transition-all"
           >
             <PlusIcon size={15} strokeWidth={2.5} />
             New Note
@@ -80,7 +87,7 @@ function NotesOverview({
       </div>
 
       {/* Stats row */}
-      <div className="px-10 pb-8 grid grid-cols-3 gap-4">
+      <div className="px-4 md:px-10 pb-6 md:pb-8 grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
         <div className="bg-white/70 dark:bg-white/5 border border-apple-border rounded-2xl p-4 flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-accent/10 flex items-center justify-center">
             <FileTextIcon size={18} className="text-accent" />
@@ -111,11 +118,11 @@ function NotesOverview({
       </div>
 
       {/* Recent notes grid */}
-      <div className="px-10 pb-12">
+      <div className="px-4 md:px-10 pb-12">
         <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">
           Recent
         </p>
-        <div className="grid grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
           {recentNotes.map((note) => {
             const snippet = stripHtml(note.content);
             const imageUrl = extractFirstImage(note.content);
@@ -158,13 +165,8 @@ export default function Home() {
   const { data: allNotes = [], isLoading, isError } = useNotes();
   const { data: searchResults, isLoading: isSearching } =
     useSearchNotes(searchQuery);
-  const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted || !token) {
+  if (!token) {
     return null;
   }
 
@@ -172,7 +174,38 @@ export default function Home() {
   const isNotesLoading = searchQuery.trim() ? isSearching : isLoading;
 
   return (
-    <main className="flex h-screen w-full bg-background overflow-hidden relative">
+    <main className="flex flex-col md:flex-row h-screen w-full bg-background overflow-auto md:overflow-hidden relative">
+      <div className="md:hidden sticky top-0 z-40 border-b border-apple-border bg-background/90 backdrop-blur-xl px-4 py-3 space-y-3">
+        <div className="flex items-center justify-between">
+          <h1 className="text-lg font-bold tracking-tight">Notes</h1>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => router.push("/notes/new")}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-accent text-white rounded-xl text-sm font-semibold"
+            >
+              <PlusIcon size={15} />
+              New
+            </button>
+            <button
+              onClick={logout}
+              className="p-2 rounded-xl border border-apple-border text-gray-600 dark:text-gray-300"
+              aria-label="Log out"
+            >
+              <LogOutIcon size={16} />
+            </button>
+          </div>
+        </div>
+        <div className="relative">
+          <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+          <input
+            type="text"
+            placeholder="Search notes"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-black/5 dark:bg-white/5 border-none rounded-xl py-2 pl-9 pr-4 text-sm outline-none placeholder:text-gray-400"
+          />
+        </div>
+      </div>
       <div className="hidden md:block">
         <Sidebar
           onNewNote={() => router.push("/notes/new")}

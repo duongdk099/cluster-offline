@@ -1,5 +1,14 @@
 import type { JSONContent } from '@tiptap/core';
 
+export function normalizeUploadedImageUrl(src: string): string {
+    const apiBase = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
+    if (!apiBase || !src) return src;
+
+    return src
+        .replace(/^https?:\/\/localhost:3001(?=\/)/, apiBase)
+        .replace(/^https?:\/\/127\.0\.0\.1:3001(?=\/)/, apiBase);
+}
+
 export function formatRelativeTime(date: string | Date) {
     const now = new Date();
     const then = new Date(date);
@@ -37,13 +46,13 @@ export function stripHtml(content: JSONContent | string | any): string {
 export function extractFirstImage(content: JSONContent | string | any): string | null {
     if (typeof content === 'string') {
         const match = content.match(/<img [^>]*src="([^"]+)"/);
-        return match ? match[1] : null;
+        return match ? normalizeUploadedImageUrl(match[1]) : null;
     }
 
     if (!content) return null;
 
     if (content.type === 'image' && content.attrs?.src) {
-        return content.attrs.src;
+        return normalizeUploadedImageUrl(content.attrs.src);
     }
 
     if (content.content) {

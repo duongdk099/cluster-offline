@@ -338,3 +338,36 @@ ul[data-type="taskList"] li[data-checked="true"]>div {
   margin-bottom: 2.5rem;
   display: block;
 }
+
+@media (max-width: 767px) {
+  .editor-header {
+    height: auto;
+    min-height: 52px;
+    padding: 0.5rem 0.75rem;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .editor-content-container {
+    max-width: 100%;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    padding-top: 1.5rem;
+    padding-bottom: 6rem;
+  }
+
+  .title-input {
+    font-size: 32px;
+    margin-bottom: 1.25rem;
+  }
+
+  .date-label {
+    margin-bottom: 1.5rem;
+    text-align: left;
+  }
+
+  .status-badge {
+    font-size: 10px;
+    letter-spacing: 0.06em;
+  }
+}

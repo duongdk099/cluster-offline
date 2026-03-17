@@ -10,6 +10,7 @@ import { EditorToolbar, ToolbarButton } from './editor/EditorToolbar';
 import { StatusBadge } from './editor/StatusBadge';
 import { ImageCropModal } from './editor/ImageCropModal';
 import type { JSONContent } from '@tiptap/core';
+import { normalizeUploadedImageUrl } from '../lib/utils';
 
 interface MainEditorProps {
     note?: Note | null;
@@ -41,7 +42,7 @@ export function MainEditor({ note, onSave, onDelete, isPending }: MainEditorProp
         if (!editor || saveStatus === 'rotating' || saveStatus === 'saving') return;
         const attrs = editor.getAttributes('image');
         if (attrs.src) {
-            let fullUrl = attrs.src.split('?')[0];
+            let fullUrl = normalizeUploadedImageUrl(attrs.src.split('?')[0]);
             if (!fullUrl.startsWith('http')) {
                 const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
                 fullUrl = baseUrl + (fullUrl.startsWith('/') ? '' : '/') + fullUrl;
@@ -63,7 +64,7 @@ export function MainEditor({ note, onSave, onDelete, isPending }: MainEditorProp
         const attrs = editor.getAttributes('image');
         if (attrs.src) {
             // Ensure absolute URL
-            let fullUrl = attrs.src.split('?')[0];
+            let fullUrl = normalizeUploadedImageUrl(attrs.src.split('?')[0]);
             if (!fullUrl.startsWith('http')) {
                 const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
                 fullUrl = baseUrl + (fullUrl.startsWith('/') ? '' : '/') + fullUrl;

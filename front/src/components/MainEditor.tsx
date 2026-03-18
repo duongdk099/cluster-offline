@@ -6,6 +6,7 @@ import { BubbleMenu } from '@tiptap/react/menus';
 import { Share, Trash2, AlignLeft, AlignCenter, AlignRight, Crop, RotateCw } from 'lucide-react';
 import { Note } from '../lib/types';
 import { useNoteEditor } from '../hooks/useNoteEditor';
+import { useFolders } from '../hooks/useNotes';
 import { EditorToolbar, ToolbarButton } from './editor/EditorToolbar';
 import { StatusBadge } from './editor/StatusBadge';
 import { ImageCropModal } from './editor/ImageCropModal';
@@ -14,7 +15,7 @@ import { normalizeUploadedImageUrl } from '../lib/utils';
 
 interface MainEditorProps {
     note?: Note | null;
-    onSave: (note: { title: string; content: JSONContent }) => void;
+    onSave: (note: { title: string; content: JSONContent; tags?: string[]; folderId?: string | null }) => void;
     onDelete?: () => void;
     isPending: boolean;
 }
@@ -23,13 +24,19 @@ export function MainEditor({ note, onSave, onDelete, isPending }: MainEditorProp
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [cropImageInfo, setCropImageInfo] = useState<{ src: string; file: File } | null>(null);
     const createdAtDate = note?.createdAt ? new Date(note.createdAt) : null;
+    const { data: folders = [] } = useFolders();
 
     // Everything complex is now hidden in this hook
     const {
         editor,
         title,
+        tags,
+        tagInput,
+        folderId,
         saveStatus,
         handleTitleChange,
+        handleTagsChange,
+        handleFolderChange,
         handleFileUpload,
         handleCrop,
         handleRotate
@@ -126,6 +133,44 @@ export function MainEditor({ note, onSave, onDelete, isPending }: MainEditorProp
                         onKeyDown={(e) => e.key === 'Enter' && editor?.commands.focus()}
                         className="title-input transition-all focus:pl-1"
                     />
+
+                    <input
+                        type="text"
+                        placeholder="#love#Rust"
+                        value={tagInput}
+                        onChange={(e) => handleTagsChange(e.target.value)}
+                        className="w-full mt-3 px-3 py-2 rounded-xl border border-apple-border bg-white/70 dark:bg-black/20 text-sm text-gray-700 dark:text-gray-200 placeholder:text-gray-400"
+                    />
+
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5 min-h-6">
+                        {tags.length > 0 ? (
+                            tags.map((tag) => (
+                                <span
+                                    key={tag}
+                                    className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-black/5 dark:bg-white/10 text-gray-600 dark:text-gray-300"
+                                >
+                                    #{tag}
+                                </span>
+                            ))
+                        ) : (
+                            <span className="text-[11px] text-gray-400">Tip: write tags like #love#Rust</span>
+                        )}
+                    </div>
+
+                    <div className="mt-3">
+                        <select
+                            value={folderId ?? ''}
+                            onChange={(e) => handleFolderChange(e.target.value || null)}
+                            className="w-full px-3 py-2 rounded-xl border border-apple-border bg-white/70 dark:bg-black/20 text-sm text-gray-700 dark:text-gray-200"
+                        >
+                            <option value="">No Folder</option>
+                            {folders.map((folder) => (
+                                <option key={folder.id} value={folder.id}>
+                                    {folder.name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
 
                     <div className="min-h-[60vh] prose-container">
                         {editor && (

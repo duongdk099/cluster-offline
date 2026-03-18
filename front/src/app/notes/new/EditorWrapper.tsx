@@ -19,7 +19,7 @@ export function EditorWrapper() {
   const [showListMobile, setShowListMobile] = useState(false);
   const [showLeftPanels, setShowLeftPanels] = useState(true);
 
-  const handleSave = (data: { title: string; content: JSONContent }) => {
+  const handleSave = (data: { title: string; content: JSONContent; tags?: string[]; folderId?: string | null }) => {
     startTransition(async () => {
       const result = await createNote(data);
       if (result?.error) {

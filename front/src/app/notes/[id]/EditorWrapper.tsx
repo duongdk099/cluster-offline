@@ -10,12 +10,15 @@ import { useNotes, useUpdateNote } from '@/hooks/useNotes';
 import { useAuth } from '@/contexts/AuthContext';
 import type { JSONContent } from '@tiptap/core';
 import { ChevronDown, ChevronUp, Home, PlusIcon, LogOutIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import type { NoteTag } from '@/lib/types';
 
 interface EditorWrapperProps {
   note: {
     id: string;
     title: string;
     content: JSONContent;
+    tags?: NoteTag[];
+    folderId?: string | null;
     createdAt: string;
   };
 }
@@ -28,7 +31,7 @@ export function EditorWrapper({ note }: EditorWrapperProps) {
   const [showListMobile, setShowListMobile] = useState(false);
   const [showLeftPanels, setShowLeftPanels] = useState(true);
 
-  const handleSave = (data: { title: string; content: JSONContent }) => {
+  const handleSave = (data: { title: string; content: JSONContent; tags?: string[]; folderId?: string | null }) => {
     updateNote.mutate({ id: note.id, ...data });
   };
 

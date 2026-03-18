@@ -26,6 +26,8 @@ async function getAuthHeaders() {
 export interface NoteData {
   title: string;
   content: any;
+  tags?: string[];
+  folderId?: string | null;
 }
 
 export async function createNote(data: NoteData) {

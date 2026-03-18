@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { Sidebar } from "@/components/Sidebar";
 import { NoteList } from "@/components/NoteList";
@@ -164,15 +165,43 @@ function NotesOverview({
   );
 }
 
-export default function Home() {
+function HomeContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { token, logout } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [mobileView, setMobileView] = useState<"list" | "overview">("list");
   const [showLeftPanels, setShowLeftPanels] = useState(true);
-  const { data: allNotes = [], isLoading, isError } = useNotes();
+  const selectedTag = searchParams.get('tag') || '';
+  const selectedFolder = searchParams.get('folder') || '';
+  const { data: allNotes = [], isLoading, isError } = useNotes({
+    tag: selectedTag || undefined,
+    folder: selectedFolder || undefined,
+  });
   const { data: searchResults, isLoading: isSearching } =
-    useSearchNotes(searchQuery);
+    useSearchNotes(searchQuery, {
+      tag: selectedTag || undefined,
+      folder: selectedFolder || undefined,
+    });
+
+  const updateFilters = (nextTag: string, nextFolder: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+
+    if (nextTag) {
+      params.set('tag', nextTag);
+    } else {
+      params.delete('tag');
+    }
+
+    if (nextFolder) {
+      params.set('folder', nextFolder);
+    } else {
+      params.delete('folder');
+    }
+
+    const query = params.toString();
+    router.push(query ? `/?${query}` : '/');
+  };
 
   if (!token) {
     return null;
@@ -246,6 +275,10 @@ export default function Home() {
               onLogout={logout}
               searchQuery={searchQuery}
               onSearchChange={setSearchQuery}
+              selectedTag={selectedTag}
+              selectedFolder={selectedFolder}
+              onSelectTag={(tag) => updateFilters(tag, '')}
+              onSelectFolder={(folder) => updateFilters('', folder)}
             />
           </div>
 
@@ -321,5 +354,13 @@ export default function Home() {
         </nav>
       </div>
     </main>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={null}>
+      <HomeContent />
+    </Suspense>
   );
 }

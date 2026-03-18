@@ -94,6 +94,10 @@ export function NoteList({ notes, isLoading, isError, selectedId, onSelect, sear
                                 note={note}
                                 isActive={selectedId === note.id}
                                 onClick={() => onSelect(note)}
+                                onDragStart={(e) => {
+                                    e.dataTransfer.effectAllowed = 'move';
+                                    e.dataTransfer.setData('text/plain', note.id);
+                                }}
                             />
                         ))}
                     </div>

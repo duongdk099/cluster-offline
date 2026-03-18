@@ -5,16 +5,20 @@ interface NoteCardProps {
     note: Note;
     isActive?: boolean;
     onClick?: () => void;
+    onDragStart?: (e: React.DragEvent<HTMLButtonElement>) => void;
 }
 
-export function NoteCard({ note, isActive, onClick }: NoteCardProps) {
+export function NoteCard({ note, isActive, onClick, onDragStart }: NoteCardProps) {
     const snippet = stripHtml(note.content);
     const imageUrl = extractFirstImage(note.content);
+    const visibleTags = (note.tags ?? []).slice(0, 3);
 
     return (
         <button
             type="button"
+            draggable
             onClick={onClick}
+            onDragStart={onDragStart}
             className={`group w-full text-left px-3.5 py-3.5 cursor-pointer transition-all relative rounded-2xl border ${isActive
                 ? 'bg-apple-selection border-accent/35 shadow-sm'
                 : 'border-transparent hover:bg-gray-100/70 dark:hover:bg-white/5 hover:border-apple-border/50'
@@ -39,6 +43,19 @@ export function NoteCard({ note, isActive, onClick }: NoteCardProps) {
                             {snippet || 'No additional text'}
                         </p>
                     </div>
+
+                    {visibleTags.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                            {visibleTags.map((tag) => (
+                                <span
+                                    key={tag.id}
+                                    className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-black/5 dark:bg-white/10 text-gray-600 dark:text-gray-300"
+                                >
+                                    {tag.name}
+                                </span>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
                 {imageUrl && (

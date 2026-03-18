@@ -22,6 +22,7 @@ interface MainEditorProps {
 export function MainEditor({ note, onSave, onDelete, isPending }: MainEditorProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [cropImageInfo, setCropImageInfo] = useState<{ src: string; file: File } | null>(null);
+    const createdAtDate = note?.createdAt ? new Date(note.createdAt) : null;
 
     // Everything complex is now hidden in this hook
     const {
@@ -82,7 +83,7 @@ export function MainEditor({ note, onSave, onDelete, isPending }: MainEditorProp
     };
 
     return (
-        <div className="flex-1 flex flex-col h-screen overflow-hidden relative paper-texture">
+        <div className="flex-1 flex flex-col h-full min-h-0 overflow-hidden relative paper-texture">
             {/* CLEAN HEADER SECTION */}
             <header className="editor-header">
                 <EditorToolbar
@@ -90,7 +91,7 @@ export function MainEditor({ note, onSave, onDelete, isPending }: MainEditorProp
                     onAddImage={() => fileInputRef.current?.click()}
                 />
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 md:gap-3 ml-auto">
                     <StatusBadge status={saveStatus} createdAt={note?.createdAt} />
 
                     <div className="flex items-center gap-1">
@@ -112,7 +113,9 @@ export function MainEditor({ note, onSave, onDelete, isPending }: MainEditorProp
             <main className="flex-1 overflow-y-auto scroll-smooth custom-scrollbar">
                 <div className="editor-content-container">
                     <span className="date-label">
-                        {new Date(note?.createdAt || Date.now()).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} at {new Date(note?.createdAt || Date.now()).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                        {createdAtDate
+                            ? `${createdAtDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} at ${createdAtDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`
+                            : 'Draft'}
                     </span>
 
                     <input
@@ -126,7 +129,7 @@ export function MainEditor({ note, onSave, onDelete, isPending }: MainEditorProp
 
                     <div className="min-h-[60vh] prose-container">
                         {editor && (
-                            <BubbleMenu editor={editor} shouldShow={({ editor }: any) => editor.isActive('image')}>
+                            <BubbleMenu editor={editor} shouldShow={({ editor }) => editor.isActive('image')}>
                                 <div className="flex items-center p-1 bg-white dark:bg-zinc-900 border border-apple-border rounded-xl shadow-xl gap-0.5 glass">
                                     <ToolbarButton icon={<AlignLeft size={16} />} onClick={() => editor.chain().focus().setTextAlign('left').run()} active={editor.isActive({ textAlign: 'left' })} title="Align Left" />
                                     <ToolbarButton icon={<AlignCenter size={16} />} onClick={() => editor.chain().focus().setTextAlign('center').run()} active={editor.isActive({ textAlign: 'center' })} title="Align Center" />

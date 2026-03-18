@@ -15,13 +15,13 @@ interface NoteListProps {
 export function NoteList({ notes, isLoading, isError, selectedId, onSelect, searchQuery, onClearSearch }: NoteListProps) {
     if (isLoading) {
         return (
-            <div className="w-full md:w-84 border-b md:border-b-0 md:border-r border-apple-border h-full bg-white dark:bg-black/20 overflow-hidden">
-                <div className="p-3 pl-12 border-b border-apple-border flex items-center h-13">
+            <div className="w-full md:w-84 border-b md:border-b-0 md:border-r border-apple-border h-full bg-white/80 dark:bg-black/20 overflow-hidden">
+                <div className="px-4 md:pl-12 border-b border-apple-border flex items-center h-13">
                     <div className="h-6 bg-gray-100 dark:bg-white/5 rounded-lg animate-pulse w-full max-w-30" />
                 </div>
                 <div className="space-y-0">
                     {[1, 2, 3, 4, 5].map(i => (
-                        <div key={i} className="p-4 border-b border-apple-border/50 animate-pulse flex gap-3">
+                        <div key={i} className="px-4 py-3.5 border-b border-apple-border/50 animate-pulse flex gap-3">
                             <div className="flex-1 space-y-2">
                                 <div className="h-3.5 bg-gray-100 dark:bg-white/5 rounded w-3/4" />
                                 <div className="h-2.5 bg-gray-100 dark:bg-white/5 rounded w-1/2" />
@@ -36,7 +36,7 @@ export function NoteList({ notes, isLoading, isError, selectedId, onSelect, sear
 
     if (isError) {
         return (
-            <div className="w-full md:w-84 border-b md:border-b-0 md:border-r border-apple-border h-full flex items-center justify-center p-8 text-center bg-white dark:bg-black/20 paper-texture">
+            <div className="w-full md:w-84 border-b md:border-b-0 md:border-r border-apple-border h-full flex items-center justify-center p-8 text-center bg-white/80 dark:bg-black/20 paper-texture">
                 <p className="text-sm text-red-500 font-medium">Failed to load notes.</p>
             </div>
         );
@@ -46,14 +46,14 @@ export function NoteList({ notes, isLoading, isError, selectedId, onSelect, sear
     const showNoResults = hasSearchQuery && notes && notes.length === 0;
 
     return (
-        <div className="w-full md:w-84 flex flex-col border-b md:border-b-0 md:border-r border-apple-border h-full bg-white dark:bg-black/20 overflow-hidden">
+        <div className="w-full md:w-84 flex flex-col border-b md:border-b-0 md:border-r border-apple-border h-full bg-white/85 dark:bg-black/20 overflow-hidden">
             {/* Note List Header */}
-            <div className="h-13 px-4 flex items-center justify-between border-b border-apple-border/50 bg-white/50 dark:bg-black/5 backdrop-blur-md">
+            <div className="h-13 px-4 flex items-center justify-between border-b border-apple-border/50 bg-white/70 dark:bg-black/5 backdrop-blur-md">
                 <div className="flex items-center gap-2">
                     {hasSearchQuery && (
                         <SearchIcon size={14} className="text-gray-400" />
                     )}
-                    <h2 className="text-[13px] font-bold text-gray-400 uppercase tracking-widest pl-2">
+                    <h2 className="text-[11px] md:text-[13px] font-bold text-gray-400 uppercase tracking-widest pl-1 md:pl-2">
                         {hasSearchQuery ? 'Search Results' : 'Notes'}
                     </h2>
                 </div>
@@ -72,9 +72,9 @@ export function NoteList({ notes, isLoading, isError, selectedId, onSelect, sear
                 </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto overflow-x-hidden pt-2 pb-24 md:pb-12">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden px-2 pt-2 pb-24 md:px-2 md:pb-12">
                 {showNoResults ? (
-                    <div className="p-12 text-center space-y-3 opacity-40">
+                    <div className="p-8 md:p-12 text-center space-y-3 opacity-40">
                         <div className="text-4xl">🔍</div>
                         <p className="text-[14px] font-bold text-gray-500 italic">No results found</p>
                         <p className="text-[12px] text-gray-400">
@@ -82,12 +82,12 @@ export function NoteList({ notes, isLoading, isError, selectedId, onSelect, sear
                         </p>
                     </div>
                 ) : notes?.length === 0 ? (
-                    <div className="p-12 text-center space-y-3 opacity-40">
+                    <div className="p-8 md:p-12 text-center space-y-3 opacity-40">
                         <div className="text-4xl">📭</div>
                         <p className="text-[14px] font-bold text-gray-500 italic">No Notes</p>
                     </div>
                 ) : (
-                    <div className="px-2 space-y-0.5">
+                    <div className="space-y-1.5 md:space-y-0.5">
                         {notes?.map((note) => (
                             <NoteCard
                                 key={note.id}

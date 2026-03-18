@@ -12,17 +12,18 @@ export function NoteCard({ note, isActive, onClick }: NoteCardProps) {
     const imageUrl = extractFirstImage(note.content);
 
     return (
-        <div
+        <button
+            type="button"
             onClick={onClick}
-            className={`group px-4 py-3 cursor-pointer transition-all relative ${isActive
-                ? 'bg-apple-selection'
-                : 'hover:bg-gray-100/50 dark:hover:bg-white/5'
+            className={`group w-full text-left px-3.5 py-3.5 cursor-pointer transition-all relative rounded-2xl border ${isActive
+                ? 'bg-apple-selection border-accent/35 shadow-sm'
+                : 'border-transparent hover:bg-gray-100/70 dark:hover:bg-white/5 hover:border-apple-border/50'
                 }`}
         >
             <div className="flex gap-3">
                 <div className="flex-1 space-y-0.5 min-w-0">
                     <div className="flex justify-between items-baseline gap-2">
-                        <h3 className="font-bold text-[15px] truncate text-gray-900 dark:text-gray-100">
+                        <h3 className="font-bold text-[14px] md:text-[15px] truncate text-gray-900 dark:text-gray-100">
                             {note.title || 'New Note'}
                         </h3>
                         {isActive && (
@@ -30,25 +31,25 @@ export function NoteCard({ note, isActive, onClick }: NoteCardProps) {
                         )}
                     </div>
 
-                    <div className="flex items-center gap-2">
-                        <span className="text-[13px] text-gray-400 whitespace-nowrap">
+                    <div className="flex items-center gap-1.5">
+                        <span className="text-[11px] md:text-[12px] text-gray-400 whitespace-nowrap font-medium">
                             {formatRelativeTime(note.createdAt)}
                         </span>
-                        <p className="text-[13px] text-gray-500 line-clamp-1 leading-snug">
+                        <p className="text-[12px] md:text-[13px] text-gray-500 line-clamp-1 leading-snug">
                             {snippet || 'No additional text'}
                         </p>
                     </div>
                 </div>
 
                 {imageUrl && (
-                    <div className="flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden border border-apple-border/50 bg-gray-50 bg-center bg-cover" style={{ backgroundImage: `url(${imageUrl})` }} />
+                    <div className="shrink-0 w-11 h-11 md:w-12 md:h-12 rounded-xl overflow-hidden border border-apple-border/50 bg-gray-50 bg-center bg-cover" style={{ backgroundImage: `url(${imageUrl})` }} />
                 )}
             </div>
 
             {/* Inset Separator - only show if not active and last item handled by parent list */}
             {!isActive && (
-                <div className="absolute bottom-0 right-0 left-4 h-px bg-apple-border" />
+                <div className="hidden md:block absolute bottom-0 right-0 left-4 h-px bg-apple-border" />
             )}
-        </div>
+        </button>
     );
 }

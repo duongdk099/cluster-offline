@@ -63,77 +63,83 @@ export function EditorWrapper({ note }: EditorWrapperProps) {
         </div>
 
         <div className="w-full flex flex-col md:flex-row overflow-hidden flex-1">
-      <div className="md:hidden sticky top-0 z-40 border-b border-apple-border bg-background/90 backdrop-blur-xl px-4 py-3 space-y-3">
-        <div className="flex items-center justify-between gap-2">
-          <button
-            onClick={() => router.push('/')}
-            className="p-2 rounded-xl border border-apple-border"
-            aria-label="Back to home"
-          >
-            <Home size={16} />
-          </button>
-          <button
-            onClick={() => setShowListMobile((prev) => !prev)}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border border-apple-border text-sm font-medium"
-          >
-            Notes
-            {showListMobile ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-          </button>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => router.push('/notes/new')}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-accent text-white rounded-xl text-sm font-semibold"
-            >
-              <PlusIcon size={14} />
-              New
-            </button>
-            <button
-              onClick={logout}
-              className="p-2 rounded-xl border border-apple-border text-gray-600 dark:text-gray-300"
-              aria-label="Log out"
-            >
-              <LogOutIcon size={16} />
-            </button>
+          <div className="mobile-topbar md:hidden">
+            <div className="flex items-center justify-between gap-2">
+              <button
+                onClick={() => router.push('/')}
+                className="p-2 rounded-xl border border-apple-border"
+                aria-label="Back to home"
+              >
+                <Home size={16} />
+              </button>
+
+              <button
+                onClick={() => setShowListMobile((prev) => !prev)}
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border border-apple-border text-sm font-medium"
+              >
+                Notes
+                {showListMobile ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => router.push('/notes/new')}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-accent text-white rounded-xl text-sm font-semibold shadow-sm"
+                >
+                  <PlusIcon size={14} />
+                  New
+                </button>
+                <button
+                  onClick={logout}
+                  className="p-2 rounded-xl border border-apple-border text-gray-600 dark:text-gray-300"
+                  aria-label="Log out"
+                >
+                  <LogOutIcon size={16} />
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
-      <div className={`app-panel transition-all duration-300 overflow-hidden ${
-        showLeftPanels ? "md:block" : "md:w-0 md:hidden"
-      }`}>
-        <Sidebar onNewNote={() => router.push('/notes/new')} onLogout={logout} />
-      </div>
-      <div className={`app-section transition-all duration-300 overflow-hidden ${
-        showLeftPanels ? "md:block" : "md:w-0 md:hidden"
-      }`}>
-        <NoteList
-          notes={notes}
-          isLoading={isLoading}
-          isError={isError}
-          selectedId={note.id}
-          onSelect={(n) => router.push(`/notes/${n.id}`)}
-        />
-      </div>
-      {showListMobile && (
-        <div className="md:hidden">
-          <NoteList
-            notes={notes}
-            isLoading={isLoading}
-            isError={isError}
-            selectedId={note.id}
-            onSelect={(n) => {
-              setShowListMobile(false);
-              router.push(`/notes/${n.id}`);
-            }}
+
+          <div className={`hidden md:block app-panel transition-all duration-300 overflow-hidden ${
+            showLeftPanels ? "md:block" : "md:w-0 md:hidden"
+          }`}>
+            <Sidebar onNewNote={() => router.push('/notes/new')} onLogout={logout} />
+          </div>
+
+          <div className={`hidden md:block app-section transition-all duration-300 overflow-hidden ${
+            showLeftPanels ? "md:block" : "md:w-0 md:hidden"
+          }`}>
+            <NoteList
+              notes={notes}
+              isLoading={isLoading}
+              isError={isError}
+              selectedId={note.id}
+              onSelect={(n) => router.push(`/notes/${n.id}`)}
+            />
+          </div>
+
+          {showListMobile && (
+            <div className="mobile-sheet md:hidden">
+              <NoteList
+                notes={notes}
+                isLoading={isLoading}
+                isError={isError}
+                selectedId={note.id}
+                onSelect={(n) => {
+                  setShowListMobile(false);
+                  router.push(`/notes/${n.id}`);
+                }}
+              />
+            </div>
+          )}
+
+          <MainEditor
+            key={note.id}
+            note={note}
+            onSave={handleSave}
+            onDelete={handleDelete}
+            isPending={updateNote.isPending}
           />
-        </div>
-      )}
-      <MainEditor
-        key={note.id}
-        note={note}
-        onSave={handleSave}
-        onDelete={handleDelete}
-        isPending={updateNote.isPending}
-      />
         </div>
       </div>
     </main>

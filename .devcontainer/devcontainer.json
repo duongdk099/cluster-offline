@@ -52,6 +52,6 @@
       "onAutoForward": "silent"
     }
   },
-  "postCreateCommand": "pnpm install && cd api && bun install",
-  "postStartCommand": "bash -c 'docker compose up -d db && sleep 4 && cd api && bun run db:push && cd .. && echo \"CORS_ORIGIN=https://${CODESPACE_NAME}-3000.app.github.dev\" > api/.env && echo \"TRUST_PROXY_HEADERS=true\" >> api/.env && echo \"NEXT_PUBLIC_API_URL=https://${CODESPACE_NAME}-3001.app.github.dev\" > front/.env.local && echo \"NEXT_PUBLIC_WS_URL=wss://${CODESPACE_NAME}-3001.app.github.dev/ws\" >> front/.env.local'"
+  "postCreateCommand": "curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh && cd image-wasm && wasm-pack build && cd .. && cp api/.env.example api/.env && cp api/.env.example api/.env.local && cp front/.env.example front/.env.local && pnpm install && cd api && bun install",
+  "postStartCommand": "bash .devcontainer/post-start.sh"
 }

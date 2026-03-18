@@ -22,7 +22,7 @@ export function ToolbarButton({ icon, onClick, active = false, title }: ToolbarB
         <button
             onClick={onClick}
             title={title}
-            className={`w-[38px] h-[32px] flex items-center justify-center rounded-lg transition-all duration-200 
+            className={`w-8.5 h-8 md:w-9.5 md:h-8 flex items-center justify-center rounded-lg transition-all duration-200 
                 ${active ? 'bg-white shadow-sm border-apple-border text-accent dark:bg-zinc-800' : 'text-zinc-500 hover:text-zinc-900 border-transparent hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
             style={{ border: '1px solid currentColor', borderColor: active ? 'var(--border)' : 'transparent' }}
         >
@@ -48,7 +48,7 @@ export function EditorToolbar({ editor, onAddImage }: EditorToolbarProps) {
     };
 
     return (
-        <div className="flex items-center gap-1.5 p-1">
+        <div className="flex items-center gap-1.5 p-1 overflow-x-auto max-w-full">
             <div className="toolbar-group">
                 <ToolbarButton
                     icon={<CheckSquare size={17} strokeWidth={2.5} />}

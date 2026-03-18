@@ -61,7 +61,7 @@ export function DeletedWrapper() {
       </div>
 
       <div className="w-full flex flex-col md:flex-row overflow-hidden flex-1">
-      <div className="md:hidden sticky top-0 z-40 border-b border-apple-border bg-background/90 backdrop-blur-xl px-4 py-3">
+      <div className="mobile-topbar md:hidden">
         <div className="flex items-center justify-between gap-2">
           <Link href="/" className="p-2 rounded-xl border border-apple-border">
             <ArrowLeft size={16} />
@@ -76,19 +76,19 @@ export function DeletedWrapper() {
           </button>
         </div>
       </div>
-      <div className={`app-panel transition-all duration-300 overflow-hidden ${
+      <div className={`hidden md:block app-panel transition-all duration-300 overflow-hidden ${
         showLeftPanels ? "md:block" : "md:w-0 md:hidden"
       }`}>
         <Sidebar onNewNote={() => router.push('/notes/new')} onLogout={logout} />
       </div>
 
-      <div className="w-full md:w-84 flex flex-col border-b md:border-b-0 md:border-r border-apple-border h-full bg-white dark:bg-black/20 overflow-hidden">
-        <div className="h-13 px-4 flex items-center justify-between border-b border-apple-border/50 bg-white/50 dark:bg-black/5 backdrop-blur-md">
+      <div className="w-full md:w-84 flex flex-col border-b md:border-b-0 md:border-r border-apple-border h-full bg-white/85 dark:bg-black/20 overflow-hidden">
+        <div className="h-13 px-4 flex items-center justify-between border-b border-apple-border/50 bg-white/70 dark:bg-black/5 backdrop-blur-md">
           <div className="flex items-center gap-2">
             <Link href="/" className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded transition-colors">
               <ArrowLeft size={16} />
             </Link>
-            <h2 className="text-[13px] font-bold text-gray-400 uppercase tracking-widest">Recently Deleted</h2>
+            <h2 className="text-[11px] md:text-[13px] font-bold text-gray-400 uppercase tracking-widest">Recently Deleted</h2>
           </div>
           <div className="flex items-center gap-2">
             <div className="px-2 py-0.5 rounded-md bg-black/5 dark:bg-white/5 text-[11px] font-bold text-gray-500">
@@ -106,32 +106,32 @@ export function DeletedWrapper() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto pt-2 pb-12">
+        <div className="flex-1 overflow-y-auto px-2 pt-2 pb-20 md:pb-12">
           {deletedNotes.length === 0 ? (
             <div className="p-12 text-center space-y-3 opacity-40">
               <div className="text-4xl">🗑️</div>
               <p className="text-[14px] font-bold text-gray-500 italic">Trash is empty</p>
             </div>
           ) : (
-            <div className="px-2 space-y-0.5">
+            <div className="space-y-1.5 md:space-y-0.5">
               {deletedNotes.map((note) => (
                 <div
                   key={note.id}
                   onClick={() => setSelectedNoteId(note.id === selectedNoteId ? null : note.id)}
-                  className={`group px-4 py-3 cursor-pointer transition-all relative ${
+                  className={`group w-full text-left px-4 py-3.5 cursor-pointer transition-all relative rounded-2xl border ${
                     note.id === selectedNoteId
-                      ? 'bg-apple-selection'
-                      : 'hover:bg-gray-100/50 dark:hover:bg-white/5'
+                      ? 'bg-apple-selection border-accent/35 shadow-sm'
+                      : 'border-transparent hover:bg-gray-100/70 dark:hover:bg-white/5 hover:border-apple-border/50'
                   }`}
                 >
                   <div className="flex-1 space-y-0.5 min-w-0">
                     <div className="flex justify-between items-baseline gap-2">
-                      <h3 className="font-bold text-[15px] truncate text-gray-900 dark:text-gray-100">
+                      <h3 className="font-bold text-[14px] md:text-[15px] truncate text-gray-900 dark:text-gray-100">
                         {note.title || ''}
                       </h3>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-[13px] text-red-400 whitespace-nowrap">
+                      <span className="text-[12px] text-red-400 whitespace-nowrap font-medium">
                         Deleted {formatRelativeTime(note.deletedAt!)}
                       </span>
                     </div>

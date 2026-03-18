@@ -45,7 +45,7 @@ function NotesOverview({
 
   if (notes.length === 0) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-12 text-center space-y-8 paper-texture">
+      <div className="flex-1 flex flex-col items-center justify-center p-8 md:p-12 text-center space-y-6 md:space-y-8 paper-texture">
         <div className="relative">
           <div className="absolute inset-0 bg-accent/20 blur-3xl rounded-full" />
           <div className="relative w-32 h-32 bg-zinc-100 dark:bg-zinc-800 rounded-[3rem] flex items-center justify-center shadow-2xl backdrop-blur-sm border border-apple-border">
@@ -72,14 +72,16 @@ function NotesOverview({
   }
 
   return (
-    <div className="flex-1 flex flex-col h-auto md:h-screen overflow-y-auto paper-texture">
+    <div className="flex-1 flex flex-col h-full min-h-0 overflow-y-auto paper-texture">
       {/* Header */}
-      <div className="px-4 md:px-10 pt-6 md:pt-12 pb-4 md:pb-6">
+      <div className="px-4 md:px-10 pt-5 md:pt-12 pb-4 md:pb-6">
         <div className="flex items-end justify-between gap-4">
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">
-            Overview
-          </p>
-          <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Your Notes</h2>
+          <div>
+            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1">
+              Overview
+            </p>
+            <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Your Notes</h2>
+          </div>
           <button
             onClick={onNewNote}
             className="hidden md:flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-2xl text-sm font-semibold shadow hover:opacity-90 active:scale-95 transition-all"
@@ -91,7 +93,7 @@ function NotesOverview({
       </div>
 
       {/* Stats row */}
-      <div className="px-4 md:px-10 pb-6 md:pb-8 grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
+      <div className="px-4 md:px-10 pb-6 md:pb-8 grid grid-cols-1 sm:grid-cols-3 gap-2.5 md:gap-4">
         <div className="bg-white/70 dark:bg-white/5 border border-apple-border rounded-2xl p-4 flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-accent/10 flex items-center justify-center">
             <FileTextIcon size={18} className="text-accent" />
@@ -122,11 +124,11 @@ function NotesOverview({
       </div>
 
       {/* Recent notes grid */}
-      <div className="px-4 md:px-10 pb-12">
+      <div className="px-4 md:px-10 pb-24 md:pb-12">
         <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">
           Recent
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-4">
           {recentNotes.map((note) => {
             const snippet = stripHtml(note.content);
             const imageUrl = extractFirstImage(note.content);
@@ -200,16 +202,16 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="md:hidden sticky top-0 z-40 border-b border-apple-border bg-background/90 backdrop-blur-xl px-4 py-3 space-y-3">
+        <div className="mobile-topbar md:hidden space-y-2.5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="section-title">Workspace</p>
-              <h1 className="text-lg font-bold tracking-tight">Notes</h1>
+              <p className="mobile-topbar-title">Workspace</p>
+              <h1 className="text-lg font-bold tracking-tight leading-none mt-1">Notes</h1>
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => router.push("/notes/new")}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-accent text-white rounded-xl text-sm font-semibold"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-accent text-white rounded-xl text-sm font-semibold shadow-sm"
               >
                 <PlusIcon size={15} />
                 New
@@ -230,13 +232,13 @@ export default function Home() {
               placeholder="Search notes"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-black/5 dark:bg-white/5 border-none rounded-xl py-2 pl-9 pr-4 text-sm outline-none placeholder:text-gray-400"
+              className="w-full bg-black/5 dark:bg-white/5 border border-apple-border/40 rounded-xl py-2.5 pl-9 pr-4 text-sm outline-none placeholder:text-gray-400"
             />
           </div>
         </div>
 
         <div className="w-full flex flex-col md:flex-row overflow-hidden flex-1">
-          <div className={`app-panel transition-all duration-300 overflow-hidden ${
+          <div className={`hidden md:block app-panel transition-all duration-300 overflow-hidden ${
             showLeftPanels ? "md:block" : "md:w-0 md:hidden"
           }`}>
             <Sidebar
@@ -247,7 +249,7 @@ export default function Home() {
             />
           </div>
 
-          <div className={`app-section transition-all duration-300 overflow-hidden ${
+          <div className={`hidden md:block app-section transition-all duration-300 overflow-hidden ${
             showLeftPanels ? "md:block" : "md:w-0 md:hidden"
           }`}>
             <NoteList
@@ -269,7 +271,7 @@ export default function Home() {
             />
           </div>
 
-          <div className="md:hidden flex-1 overflow-hidden pb-24">
+          <div className="md:hidden flex-1 overflow-hidden pb-24 bg-white/70 dark:bg-transparent">
             {mobileView === "list" ? (
               <NoteList
                 notes={notes}

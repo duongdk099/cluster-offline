@@ -51,7 +51,7 @@ export function EditorWrapper() {
       </div>
 
       <div className="w-full flex flex-col md:flex-row overflow-hidden flex-1">
-      <div className="md:hidden sticky top-0 z-40 border-b border-apple-border bg-background/90 backdrop-blur-xl px-4 py-3">
+      <div className="mobile-topbar md:hidden">
         <div className="flex items-center justify-between gap-2">
           <button
             onClick={() => router.push('/')}
@@ -76,12 +76,12 @@ export function EditorWrapper() {
           </button>
         </div>
       </div>
-      <div className={`app-panel transition-all duration-300 overflow-hidden ${
+      <div className={`hidden md:block app-panel transition-all duration-300 overflow-hidden ${
         showLeftPanels ? "md:block" : "md:w-0 md:hidden"
       }`}>
         <Sidebar onNewNote={() => {}} onLogout={logout} />
       </div>
-      <div className={`app-section transition-all duration-300 overflow-hidden ${
+      <div className={`hidden md:block app-section transition-all duration-300 overflow-hidden ${
         showLeftPanels ? "md:block" : "md:w-0 md:hidden"
       }`}>
         <NoteList
@@ -93,7 +93,7 @@ export function EditorWrapper() {
         />
       </div>
       {showListMobile && (
-        <div className="md:hidden">
+        <div className="mobile-sheet md:hidden">
           <NoteList
             notes={notes}
             isLoading={isLoading}

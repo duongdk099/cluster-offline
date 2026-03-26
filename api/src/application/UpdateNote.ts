@@ -1,4 +1,5 @@
 import { Note, INoteRepository } from '../domain/Note';
+import { extractNoteText } from './extractNoteText';
 
 export class UpdateNoteUseCase {
     constructor(private noteRepository: INoteRepository) { }
@@ -18,7 +19,10 @@ export class UpdateNoteUseCase {
                 // Found the note, proceed with update
                 const updatedNoteData: Partial<Note> = {};
                 if (title !== undefined) updatedNoteData.title = title;
-                if (content !== undefined) updatedNoteData.content = content;
+                if (content !== undefined) {
+                    updatedNoteData.content = content;
+                    updatedNoteData.contentText = extractNoteText(content);
+                }
 
                 await this.noteRepository.update(id, userId, updatedNoteData);
 

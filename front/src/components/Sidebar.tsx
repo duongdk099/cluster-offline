@@ -101,12 +101,13 @@ export function Sidebar({
     };
 
     return (
-        <aside className="w-68 h-full bg-sidebar-bg flex flex-col">
-            <div className="p-4 space-y-6 flex-1 overflow-y-auto pt-8">
+        <aside data-component="Sidebar" className="w-68 h-full bg-sidebar-bg flex flex-col">
+            <div data-slot="content" className="p-4 space-y-6 flex-1 overflow-y-auto pt-8">
                 {/* Search Bar */}
-                <div className="relative group px-1">
+                <div data-slot="search" className="relative group px-1">
                     <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
                     <input
+                        data-slot="search-input"
                         type="text"
                         placeholder="Search"
                         value={query}
@@ -123,12 +124,13 @@ export function Sidebar({
                 </div>
 
                 {/* Navigation Sections */}
-                <nav className="space-y-6">
-                    <div>
+                <nav data-slot="navigation" className="space-y-6">
+                    <div data-slot="library-section">
                         <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest px-4 mb-2 opacity-60">Library</h3>
-                        <ul className="space-y-0.5">
+                        <ul data-slot="library-list" className="space-y-0.5">
                             <Link href="/">
                                 <SidebarItem
+                                    dataSlot="library-item"
                                     icon={<FolderIcon size={18} />}
                                     label="All Notes"
                                     active={isAllNotesActive && !selectedTag && !selectedFolder}
@@ -140,6 +142,7 @@ export function Sidebar({
                             </Link>
                             <Link href="/notes/deleted">
                                 <SidebarItem 
+                                    dataSlot="library-item"
                                     icon={<Trash2Icon size={18} />} 
                                     label="Recently Deleted" 
                                     active={isDeletedActive}
@@ -149,15 +152,16 @@ export function Sidebar({
                         </ul>
                     </div>
 
-                    <div>
+                    <div data-slot="tags-section">
                         <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest px-4 mb-2 opacity-60">Tags</h3>
-                        <ul className="space-y-0.5 max-h-40 overflow-y-auto custom-scrollbar pr-1">
+                        <ul data-slot="tags-list" className="space-y-0.5 max-h-40 overflow-y-auto custom-scrollbar pr-1">
                             {tags.length === 0 && (
                                 <li className="px-4 py-1.5 text-[12px] text-gray-400">No tags yet</li>
                             )}
                             {tags.map((tag) => (
                                 <SidebarItem
                                     key={tag.id}
+                                    dataSlot="tag-item"
                                     icon={<TagIcon size={16} />}
                                     label={`#${tag.name}`}
                                     active={selectedTag === tag.id}
@@ -167,17 +171,18 @@ export function Sidebar({
                         </ul>
                     </div>
 
-                    <div>
+                    <div data-slot="folders-section">
                         <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest px-4 mb-2 opacity-60">Folders</h3>
 
-                        <div className="mx-2 rounded-2xl border border-apple-border/70 bg-white/55 dark:bg-white/5 backdrop-blur-md shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
-                            <ul className="space-y-0.5 max-h-44 overflow-y-auto custom-scrollbar p-1.5">
+                        <div data-slot="folder-card" className="mx-2 rounded-2xl border border-apple-border/70 bg-white/55 dark:bg-white/5 backdrop-blur-md shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
+                            <ul data-slot="folders-list" className="space-y-0.5 max-h-44 overflow-y-auto custom-scrollbar p-1.5">
                                 {folders.length === 0 && (
                                     <li className="px-3 py-2 text-[12px] text-gray-400">No folders yet</li>
                                 )}
                                 {folders.map((folder) => (
                                     <SidebarItem
                                         key={folder.id}
+                                        dataSlot="folder-item"
                                         icon={<FolderIcon size={16} />}
                                         label={folder.name}
                                         active={selectedFolder === folder.id}
@@ -193,8 +198,9 @@ export function Sidebar({
                                 ))}
                             </ul>
 
-                            <div className="border-t border-apple-border/70 p-1.5 flex items-center gap-1.5">
+                            <div data-slot="folder-create" className="border-t border-apple-border/70 p-1.5 flex items-center gap-1.5">
                                 <input
+                                    data-slot="folder-create-input"
                                     value={newFolderName}
                                     onChange={(e) => setNewFolderName(e.target.value)}
                                     onKeyDown={(e) => {
@@ -207,6 +213,7 @@ export function Sidebar({
                                 />
                                 <button
                                     type="button"
+                                    data-slot="folder-create-button"
                                     onClick={() => void handleCreateFolder()}
                                     className="h-7 w-7 rounded-md text-[14px] font-semibold bg-black/5 dark:bg-white/10 hover:bg-black/10 flex items-center justify-center"
                                     aria-label="Add folder"
@@ -217,24 +224,26 @@ export function Sidebar({
                         </div>
                     </div>
 
-                    <div>
+                    <div data-slot="icloud-section">
                         <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest px-4 mb-2 opacity-60">iCloud</h3>
-                        <ul className="space-y-0.5">
-                            <SidebarItem icon={<FolderIcon size={18} />} label="Notes" />
+                        <ul data-slot="icloud-list" className="space-y-0.5">
+                            <SidebarItem dataSlot="icloud-item" icon={<FolderIcon size={18} />} label="Notes" />
                         </ul>
                     </div>
                 </nav>
             </div>
 
             {/* Bottom Toolbar - Apple Style */}
-            <div className="p-2 border-t border-apple-border bg-sidebar-bg/60 backdrop-blur-md flex items-center justify-between">
+            <div data-slot="footer" className="p-2 border-t border-apple-border bg-sidebar-bg/60 backdrop-blur-md flex items-center justify-between">
                 <button
+                    data-slot="logout-button"
                     onClick={onLogout}
                     className="p-2 text-gray-500 hover:text-accent transition-colors"
                 >
                     <LogOutIcon size={18} />
                 </button>
                 <button
+                    data-slot="new-note-button"
                     onClick={onNewNote}
                     className="p-2 text-accent hover:opacity-80 transition-all active:scale-95"
                 >
@@ -255,6 +264,7 @@ function SidebarItem({
     onDragOver,
     onDragLeave,
     isDropTarget = false,
+    dataSlot,
 }: {
     icon: React.ReactNode,
     label: string,
@@ -265,10 +275,14 @@ function SidebarItem({
     onDragOver?: (e: React.DragEvent<HTMLButtonElement>) => void,
     onDragLeave?: () => void,
     isDropTarget?: boolean,
+    dataSlot?: string,
 }) {
     return (
         <li>
             <button
+                data-component="SidebarItem"
+                data-slot={dataSlot ?? 'item'}
+                data-label={label}
                 onClick={onClick}
                 onDrop={onDrop}
                 onDragOver={onDragOver}

@@ -6,13 +6,14 @@ import { formatRelativeTime } from '../../lib/utils';
 interface StatusBadgeProps {
     status: SaveStatus;
     createdAt?: string;
+    updatedAt?: string;
 }
 
-export function StatusBadge({ status, createdAt }: StatusBadgeProps) {
+export function StatusBadge({ status, createdAt, updatedAt }: StatusBadgeProps) {
     if (status === 'idle') {
         return (
             <div className="status-badge opacity-60">
-                <span>{createdAt ? formatRelativeTime(createdAt) : 'Draft'}</span>
+                <span>{updatedAt ? `Updated ${formatRelativeTime(updatedAt)}` : createdAt ? formatRelativeTime(createdAt) : 'Draft'}</span>
             </div>
         );
     }

@@ -153,7 +153,7 @@ function NotesOverview({
                     {snippet || "No additional text"}
                   </p>
                   <p className="text-[11px] text-gray-300 dark:text-gray-600 pt-1">
-                    {formatRelativeTime(note.createdAt)}
+                    {formatRelativeTime(note.updatedAt ?? note.createdAt)}
                   </p>
                 </div>
               </button>

@@ -16,6 +16,12 @@ function normalizeFolderName(name: string): string {
 }
 
 export class DrizzleNoteRepository implements INoteRepository {
+    private async touchNote(noteId: string, userId: string): Promise<void> {
+        await db.update(notes)
+            .set({ updatedAt: new Date() })
+            .where(and(eq(notes.id, noteId), eq(notes.userId, userId)));
+    }
+
     private async attachTagsAndFolders(rows: typeof notes.$inferSelect[], userId: string): Promise<Note[]> {
         if (rows.length === 0) {
             return [];
@@ -61,7 +67,9 @@ export class DrizzleNoteRepository implements INoteRepository {
             userId: row.userId,
             title: row.title,
             content: row.content,
+            contentText: row.contentText,
             createdAt: row.createdAt,
+            updatedAt: row.updatedAt,
             deletedAt: row.deletedAt,
             folderId: row.folderId,
             folder: row.folderId ? foldersById.get(row.folderId) ?? null : null,
@@ -146,7 +154,9 @@ export class DrizzleNoteRepository implements INoteRepository {
             folderId: note.folderId ?? null,
             title: note.title,
             content: note.content,
+            contentText: note.contentText,
             createdAt: note.createdAt,
+            updatedAt: note.updatedAt,
             deletedAt: note.deletedAt ?? null,
         });
     }
@@ -164,7 +174,7 @@ export class DrizzleNoteRepository implements INoteRepository {
     async findAll(userId: string): Promise<Note[]> {
         const rows = await db.query.notes.findMany({
             where: and(eq(notes.userId, userId), isNull(notes.deletedAt)),
-            orderBy: [desc(notes.createdAt)],
+            orderBy: [desc(notes.updatedAt)],
         });
         return this.attachTagsAndFolders(rows, userId);
     }
@@ -178,21 +188,26 @@ export class DrizzleNoteRepository implements INoteRepository {
     }
 
     async update(id: string, userId: string, noteData: Partial<Note>): Promise<void> {
+        const nextNoteData = {
+            ...noteData,
+            updatedAt: new Date(),
+        };
+
         await db.update(notes)
-            .set(noteData)
+            .set(nextNoteData)
             .where(and(eq(notes.id, id), eq(notes.userId, userId)));
     }
 
     async restore(id: string, userId: string): Promise<void> {
         await db.update(notes)
-            .set({ deletedAt: null })
+            .set({ deletedAt: null, updatedAt: new Date() })
             .where(and(eq(notes.id, id), eq(notes.userId, userId)));
     }
 
     async delete(id: string, userId: string): Promise<void> {
         // Soft delete - set deletedAt timestamp
         await db.update(notes)
-            .set({ deletedAt: new Date() })
+            .set({ deletedAt: new Date(), updatedAt: new Date() })
             .where(and(eq(notes.id, id), eq(notes.userId, userId)));
     }
 
@@ -207,9 +222,9 @@ export class DrizzleNoteRepository implements INoteRepository {
             where: and(
                 eq(notes.userId, userId),
                 isNull(notes.deletedAt),
-                sql`(${notes.title} ILIKE ${searchTerm} OR ${notes.content}::text ILIKE ${searchTerm})`
+                sql`(${notes.title} ILIKE ${searchTerm} OR ${notes.contentText} ILIKE ${searchTerm} OR ${notes.content}::text ILIKE ${searchTerm})`
             ),
-            orderBy: [desc(notes.createdAt)],
+            orderBy: [desc(notes.updatedAt)],
         });
         return this.attachTagsAndFolders(rows, userId);
     }
@@ -255,6 +270,8 @@ export class DrizzleNoteRepository implements INoteRepository {
             })
             .onConflictDoNothing();
 
+        await this.touchNote(noteId, userId);
+
         return {
             id: tag.id,
             name: tag.name,
@@ -272,6 +289,7 @@ export class DrizzleNoteRepository implements INoteRepository {
         }
 
         await db.delete(noteTags).where(and(eq(noteTags.noteId, noteId), eq(noteTags.tagId, tagId)));
+        await this.touchNote(noteId, userId);
     }
 
     async findByTag(userId: string, tagNameOrId: string): Promise<Note[]> {
@@ -295,7 +313,7 @@ export class DrizzleNoteRepository implements INoteRepository {
 
         const noteRows = await db.query.notes.findMany({
             where: and(eq(notes.userId, userId), isNull(notes.deletedAt), inArray(notes.id, noteIds)),
-            orderBy: [desc(notes.createdAt)],
+            orderBy: [desc(notes.updatedAt)],
         });
 
         return this.attachTagsAndFolders(noteRows, userId);
@@ -344,7 +362,7 @@ export class DrizzleNoteRepository implements INoteRepository {
 
         await db
             .update(notes)
-            .set({ folderId })
+            .set({ folderId, updatedAt: new Date() })
             .where(and(eq(notes.id, noteId), eq(notes.userId, userId)));
     }
 
@@ -355,7 +373,7 @@ export class DrizzleNoteRepository implements INoteRepository {
                 isNull(notes.deletedAt),
                 eq(notes.folderId, folderId),
             ),
-            orderBy: [desc(notes.createdAt)],
+            orderBy: [desc(notes.updatedAt)],
         });
 
         return this.attachTagsAndFolders(rows, userId);

@@ -16,10 +16,12 @@ export interface Note {
     userId: string;
     title: string;
     content: any;
+    contentText: string;
     tags?: NoteTag[];
     folderId?: string | null;
     folder?: NoteFolder | null;
     createdAt: Date;
+    updatedAt: Date;
     deletedAt?: Date | null;
 }
 

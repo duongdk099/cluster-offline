@@ -112,6 +112,18 @@ export class InMemoryNoteRepository implements INoteRepository {
         };
     }
 
+    private touchNote(id: string): void {
+        const note = this.notes.get(id);
+        if (!note) {
+            return;
+        }
+
+        this.notes.set(id, {
+            ...note,
+            updatedAt: new Date(),
+        });
+    }
+
     async save(note: Note): Promise<void> {
         this.notes.set(note.id, { ...note, tags: undefined });
 
@@ -136,6 +148,7 @@ export class InMemoryNoteRepository implements INoteRepository {
     async findAll(userId: string): Promise<Note[]> {
         return Array.from(this.notes.values())
             .filter((note) => note.userId === userId && !note.deletedAt)
+            .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
             .map((note) => ({
                 ...note,
                 tags: this.getTagsForNote(note.id, userId),
@@ -156,21 +169,26 @@ export class InMemoryNoteRepository implements INoteRepository {
     async update(id: string, userId: string, noteData: Partial<Note>): Promise<void> {
         const note = this.getUserNote(id, userId);
         if (note) {
-            this.notes.set(id, { ...note, ...noteData, tags: undefined });
+            this.notes.set(id, {
+                ...note,
+                ...noteData,
+                updatedAt: new Date(),
+                tags: undefined,
+            });
         }
     }
 
     async restore(id: string, userId: string): Promise<void> {
         const note = this.getUserNote(id, userId);
         if (note) {
-            this.notes.set(id, { ...note, deletedAt: null });
+            this.notes.set(id, { ...note, deletedAt: null, updatedAt: new Date() });
         }
     }
 
     async delete(id: string, userId: string): Promise<void> {
         const note = this.getUserNote(id, userId);
         if (note) {
-            this.notes.set(id, { ...note, deletedAt: new Date() });
+            this.notes.set(id, { ...note, deletedAt: new Date(), updatedAt: new Date() });
         }
     }
 
@@ -194,16 +212,15 @@ export class InMemoryNoteRepository implements INoteRepository {
             }
 
             const titleMatch = note.title.toLowerCase().includes(normalizedQuery);
-            const contentMatch = JSON.stringify(note.content ?? '')
-                .toLowerCase()
-                .includes(normalizedQuery);
+            const contentMatch = note.contentText.toLowerCase().includes(normalizedQuery);
 
             return titleMatch || contentMatch;
-        }).map((note) => ({
-            ...note,
-            tags: this.getTagsForNote(note.id, userId),
-            folder: this.getFolderById(userId, note.folderId),
-        }));
+        }).sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
+            .map((note) => ({
+                ...note,
+                tags: this.getTagsForNote(note.id, userId),
+                folder: this.getFolderById(userId, note.folderId),
+            }));
     }
 
     async listTags(userId: string): Promise<NoteTag[]> {
@@ -243,6 +260,7 @@ export class InMemoryNoteRepository implements INoteRepository {
         const current = this.noteTagIds.get(noteId) ?? new Set<string>();
         current.add(tag.id);
         this.noteTagIds.set(noteId, current);
+        this.touchNote(noteId);
         return tag;
     }
 
@@ -256,6 +274,7 @@ export class InMemoryNoteRepository implements INoteRepository {
         if (current) {
             current.delete(tagId);
         }
+        this.touchNote(noteId);
     }
 
     async findByTag(userId: string, tagNameOrId: string): Promise<Note[]> {
@@ -286,6 +305,7 @@ export class InMemoryNoteRepository implements INoteRepository {
                 const tagIds = this.noteTagIds.get(note.id);
                 return !!tagIds?.has(targetTagId);
             })
+            .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
             .map((note) => ({
                 ...note,
                 tags: this.getTagsForNote(note.id, userId),
@@ -316,12 +336,13 @@ export class InMemoryNoteRepository implements INoteRepository {
             throw new Error('Folder not found');
         }
 
-        this.notes.set(noteId, { ...note, folderId });
+        this.notes.set(noteId, { ...note, folderId, updatedAt: new Date() });
     }
 
     async findByFolder(userId: string, folderId: string): Promise<Note[]> {
         return Array.from(this.notes.values())
             .filter((note) => note.userId === userId && !note.deletedAt && note.folderId === folderId)
+            .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
             .map((note) => ({
                 ...note,
                 tags: this.getTagsForNote(note.id, userId),

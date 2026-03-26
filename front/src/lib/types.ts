@@ -16,9 +16,11 @@ export interface Note {
     id: string;
     title: string;
     content: JSONContent;
+    contentText?: string;
     tags?: NoteTag[];
     folderId?: string | null;
     folder?: NoteFolder | null;
     createdAt: string;
+    updatedAt?: string;
     deletedAt?: string | null;
 }

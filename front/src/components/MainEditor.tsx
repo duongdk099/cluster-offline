@@ -1,9 +1,9 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { EditorContent } from '@tiptap/react';
 import { BubbleMenu } from '@tiptap/react/menus';
-import { Share, Trash2, AlignLeft, AlignCenter, AlignRight, Crop, RotateCw } from 'lucide-react';
+import { Share, Trash2, AlignLeft, AlignCenter, AlignRight, Crop, RotateCw, FolderOpen, ChevronDown, Plus, X } from 'lucide-react';
 import { Note } from '../lib/types';
 import { useNoteEditor } from '../hooks/useNoteEditor';
 import { useFolders } from '../hooks/useNotes';
@@ -22,7 +22,9 @@ interface MainEditorProps {
 
 export function MainEditor({ note, onSave, onDelete, isPending }: MainEditorProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const tagInputRef = useRef<HTMLInputElement>(null);
     const [cropImageInfo, setCropImageInfo] = useState<{ src: string; file: File } | null>(null);
+    const [isTagComposerOpen, setIsTagComposerOpen] = useState(false);
     const createdAtDate = note?.createdAt ? new Date(note.createdAt) : null;
     const { data: folders = [] } = useFolders();
 
@@ -35,16 +37,38 @@ export function MainEditor({ note, onSave, onDelete, isPending }: MainEditorProp
         folderId,
         saveStatus,
         handleTitleChange,
-        handleTagsChange,
+        handleTagInputChange,
+        handleAddTag,
+        handleRemoveTag,
         handleFolderChange,
         handleFileUpload,
         handleCrop,
         handleRotate
     } = useNoteEditor({ note, onSave, isPending });
 
+    const selectedFolder = folders.find((folder) => folder.id === folderId) ?? null;
+
+    useEffect(() => {
+        if (!isTagComposerOpen) {
+            return;
+        }
+
+        tagInputRef.current?.focus();
+    }, [isTagComposerOpen]);
+
+    useEffect(() => {
+        setIsTagComposerOpen(false);
+    }, [note?.id]);
+
     if (note === undefined) {
         return <EmptyState />;
     }
+
+    const commitTagComposer = () => {
+        const didAddTag = handleAddTag();
+        setIsTagComposerOpen(false);
+        return didAddTag;
+    };
 
     const startRotate = async (degrees: number) => {
         if (!editor || saveStatus === 'rotating' || saveStatus === 'saving') return;
@@ -90,18 +114,21 @@ export function MainEditor({ note, onSave, onDelete, isPending }: MainEditorProp
     };
 
     return (
-        <div className="flex-1 flex flex-col h-full min-h-0 overflow-hidden relative paper-texture">
+        <div
+            data-component="MainEditor"
+            className="flex-1 flex flex-col h-full min-h-0 overflow-hidden relative paper-texture"
+        >
             {/* CLEAN HEADER SECTION */}
-            <header className="editor-header">
+            <header data-slot="header" className="editor-header">
                 <EditorToolbar
                     editor={editor}
                     onAddImage={() => fileInputRef.current?.click()}
                 />
 
-                <div className="flex items-center gap-2 md:gap-3 ml-auto">
-                    <StatusBadge status={saveStatus} createdAt={note?.createdAt} />
+                <div data-slot="header-actions" className="flex items-center gap-2 md:gap-3 ml-auto">
+                    <StatusBadge status={saveStatus} createdAt={note?.createdAt} updatedAt={note?.updatedAt} />
 
-                    <div className="flex items-center gap-1">
+                    <div data-slot="note-actions" className="flex items-center gap-1">
                         <ToolbarButton icon={<Share size={18} />} onClick={() => { }} title="Share" />
                         <ToolbarButton
                             icon={<Trash2 size={18} />}
@@ -117,15 +144,16 @@ export function MainEditor({ note, onSave, onDelete, isPending }: MainEditorProp
             </header>
 
             {/* SCROLLABLE CONTENT AREA */}
-            <main className="flex-1 overflow-y-auto scroll-smooth custom-scrollbar">
-                <div className="editor-content-container">
-                    <span className="date-label">
+            <main data-slot="content-scroll" className="flex-1 overflow-y-auto scroll-smooth custom-scrollbar">
+                <div data-slot="content-container" className="editor-content-container">
+                    <span data-slot="created-at" className="date-label">
                         {createdAtDate
                             ? `${createdAtDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} at ${createdAtDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`
                             : 'Draft'}
                     </span>
 
                     <input
+                        data-slot="title-input"
                         type="text"
                         placeholder="Title"
                         value={title}
@@ -134,48 +162,88 @@ export function MainEditor({ note, onSave, onDelete, isPending }: MainEditorProp
                         className="title-input transition-all focus:pl-1"
                     />
 
-                    <input
-                        type="text"
-                        placeholder="#love#Rust"
-                        value={tagInput}
-                        onChange={(e) => handleTagsChange(e.target.value)}
-                        className="w-full mt-3 px-3 py-2 rounded-xl border border-apple-border bg-white/70 dark:bg-black/20 text-sm text-gray-700 dark:text-gray-200 placeholder:text-gray-400"
-                    />
-
-                    <div className="mt-2 flex flex-wrap items-center gap-1.5 min-h-6">
-                        {tags.length > 0 ? (
-                            tags.map((tag) => (
-                                <span
-                                    key={tag}
-                                    className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-black/5 dark:bg-white/10 text-gray-600 dark:text-gray-300"
-                                >
-                                    #{tag}
-                                </span>
-                            ))
-                        ) : (
-                            <span className="text-[11px] text-gray-400">Tip: write tags like #love#Rust</span>
-                        )}
-                    </div>
-
-                    <div className="mt-3">
-                        <select
-                            value={folderId ?? ''}
-                            onChange={(e) => handleFolderChange(e.target.value || null)}
-                            className="w-full px-3 py-2 rounded-xl border border-apple-border bg-white/70 dark:bg-black/20 text-sm text-gray-700 dark:text-gray-200"
+                    <div data-slot="metadata-row" className="mt-4 flex flex-wrap items-center gap-2.5">
+                        <label
+                            data-slot="folder-picker"
+                            className="group relative inline-flex items-center gap-2 rounded-full border border-apple-border bg-white/70 dark:bg-white/5 px-3 py-2 text-sm text-gray-600 shadow-[0_10px_30px_rgba(15,23,42,0.05)] transition-colors hover:border-accent/25 hover:bg-white dark:hover:bg-white/8"
                         >
-                            <option value="">No Folder</option>
-                            {folders.map((folder) => (
-                                <option key={folder.id} value={folder.id}>
-                                    {folder.name}
-                                </option>
+                            <FolderOpen size={14} className="text-gray-400 transition-colors group-hover:text-accent" />
+                            <span className="pointer-events-none pr-4 font-medium text-gray-700 dark:text-gray-200">
+                                {selectedFolder?.name ?? 'Add Folder'}
+                            </span>
+                            <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                            <select
+                                value={folderId ?? ''}
+                                onChange={(e) => handleFolderChange(e.target.value || null)}
+                                className="absolute inset-0 cursor-pointer appearance-none rounded-full opacity-0"
+                                aria-label="Select folder"
+                            >
+                                <option value="">No Folder</option>
+                                {folders.map((folder) => (
+                                    <option key={folder.id} value={folder.id}>
+                                        {folder.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+
+                        <div data-slot="tag-list" className="flex flex-1 flex-wrap items-center gap-2 min-w-[240px]">
+                            {tags.map((tag) => (
+                                <button
+                                    key={tag}
+                                    data-slot="tag-chip"
+                                    data-tag-name={tag}
+                                    type="button"
+                                    onClick={() => handleRemoveTag(tag)}
+                                    className="group inline-flex items-center gap-1.5 rounded-full border border-apple-border bg-black/[0.03] px-3 py-1.5 text-xs font-semibold tracking-[0.02em] text-gray-600 transition-all hover:border-accent/30 hover:bg-accent/10 hover:text-gray-900 dark:bg-white/[0.06] dark:text-gray-200 dark:hover:bg-white/[0.10]"
+                                    title={`Remove #${tag}`}
+                                >
+                                    <span>#{tag}</span>
+                                    <X size={12} className="opacity-40 transition-opacity group-hover:opacity-100" />
+                                </button>
                             ))}
-                        </select>
+
+                            {isTagComposerOpen ? (
+                                <input
+                                    ref={tagInputRef}
+                                    data-slot="tag-input"
+                                    type="text"
+                                    placeholder="Add tag"
+                                    value={tagInput}
+                                    onChange={(e) => handleTagInputChange(e.target.value)}
+                                    onBlur={() => commitTagComposer()}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' || e.key === ',') {
+                                            e.preventDefault();
+                                            commitTagComposer();
+                                        }
+
+                                        if (e.key === 'Escape') {
+                                            e.preventDefault();
+                                            handleTagInputChange('');
+                                            setIsTagComposerOpen(false);
+                                        }
+                                    }}
+                                    className="min-w-[132px] rounded-full border border-dashed border-apple-border bg-transparent px-3 py-1.5 text-sm text-gray-700 outline-none transition-colors placeholder:text-gray-400 focus:border-accent/40 dark:text-gray-200"
+                                />
+                            ) : (
+                                <button
+                                    type="button"
+                                    data-slot="tag-add-button"
+                                    onClick={() => setIsTagComposerOpen(true)}
+                                    className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-apple-border bg-transparent px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-gray-400 transition-colors hover:border-accent/30 hover:text-accent"
+                                >
+                                    <Plus size={12} />
+                                    {tags.length > 0 ? 'Tag' : 'Add Tag'}
+                                </button>
+                            )}
+                        </div>
                     </div>
 
-                    <div className="min-h-[60vh] prose-container">
+                    <div data-slot="editor-body" className="min-h-[60vh] prose-container">
                         {editor && (
                             <BubbleMenu editor={editor} shouldShow={({ editor }) => editor.isActive('image')}>
-                                <div className="flex items-center p-1 bg-white dark:bg-zinc-900 border border-apple-border rounded-xl shadow-xl gap-0.5 glass">
+                                <div data-slot="image-bubble-menu" className="flex items-center p-1 bg-white dark:bg-zinc-900 border border-apple-border rounded-xl shadow-xl gap-0.5 glass">
                                     <ToolbarButton icon={<AlignLeft size={16} />} onClick={() => editor.chain().focus().setTextAlign('left').run()} active={editor.isActive({ textAlign: 'left' })} title="Align Left" />
                                     <ToolbarButton icon={<AlignCenter size={16} />} onClick={() => editor.chain().focus().setTextAlign('center').run()} active={editor.isActive({ textAlign: 'center' })} title="Align Center" />
                                     <ToolbarButton icon={<AlignRight size={16} />} onClick={() => editor.chain().focus().setTextAlign('right').run()} active={editor.isActive({ textAlign: 'right' })} title="Align Right" />
@@ -185,7 +253,7 @@ export function MainEditor({ note, onSave, onDelete, isPending }: MainEditorProp
                                 </div>
                             </BubbleMenu>
                         )}
-                        <EditorContent editor={editor} />
+                        <EditorContent data-slot="editor-content" editor={editor} />
                     </div>
                 </div>
             </main>

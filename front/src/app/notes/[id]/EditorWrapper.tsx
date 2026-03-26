@@ -20,6 +20,7 @@ interface EditorWrapperProps {
     tags?: NoteTag[];
     folderId?: string | null;
     createdAt: string;
+    updatedAt?: string;
   };
 }
 

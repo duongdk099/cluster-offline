@@ -1,4 +1,4 @@
-import { pgTable, timestamp, varchar, jsonb, index, uniqueIndex, primaryKey } from 'drizzle-orm/pg-core';
+import { pgTable, timestamp, varchar, jsonb, text, index, uniqueIndex, primaryKey } from 'drizzle-orm/pg-core';
 
 export const notes = pgTable('notes', {
     id: varchar('id', { length: 255 }).primaryKey(),
@@ -6,7 +6,9 @@ export const notes = pgTable('notes', {
     folderId: varchar('folder_id', { length: 255 }).references(() => folders.id, { onDelete: 'set null' }),
     title: varchar('title', { length: 255 }).notNull(),
     content: jsonb('content').notNull(),
+    contentText: text('content_text').notNull().default(''),
     createdAt: timestamp('created_at').notNull(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
     deletedAt: timestamp('deleted_at'),
 });
 

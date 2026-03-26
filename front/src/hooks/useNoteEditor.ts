@@ -31,22 +31,21 @@ function normalizeTagList(input: string[]): string[] {
         .filter(Boolean))];
 }
 
-function formatHashtagInput(tags: string[]): string {
-    if (!tags.length) {
-        return '';
+function parseTagDraft(rawInput: string): string[] {
+    const trimmedInput = rawInput.trim();
+    if (!trimmedInput) {
+        return [];
     }
 
-    return tags.map((tag) => `#${tag}`).join('');
-}
-
-function parseTagsFromInput(rawInput: string): string[] {
-    const hashtagMatches = [...rawInput.matchAll(/#([^\s#]+)/g)].map((match) => match[1]);
-    if (hashtagMatches.length > 0) {
-        return normalizeTagList(hashtagMatches);
+    if (trimmedInput.includes(',')) {
+        return normalizeTagList(trimmedInput.split(','));
     }
 
-    // Backward compatibility with previous comma-separated UX.
-    return normalizeTagList(rawInput.split(','));
+    if (trimmedInput.includes('#')) {
+        return normalizeTagList(trimmedInput.split('#'));
+    }
+
+    return normalizeTagList([trimmedInput.replace(/^#+/, '')]);
 }
 
 function normalizeContentImageUrls(content: JSONContent): JSONContent {
@@ -72,7 +71,7 @@ function normalizeContentImageUrls(content: JSONContent): JSONContent {
 export function useNoteEditor({ note, onSave, isPending }: UseNoteEditorProps) {
     const [title, setTitle] = useState(note?.title || '');
     const [tags, setTags] = useState<string[]>((note?.tags ?? []).map((tag) => tag.name));
-    const [tagInput, setTagInput] = useState<string>(formatHashtagInput((note?.tags ?? []).map((tag) => tag.name)));
+    const [tagInput, setTagInput] = useState<string>('');
     const [folderId, setFolderId] = useState<string | null>(note?.folderId ?? null);
     const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
     const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -82,6 +81,10 @@ export function useNoteEditor({ note, onSave, isPending }: UseNoteEditorProps) {
     // Use refs to avoid stale closures
     const titleRef = useRef(title);
     titleRef.current = title;
+    const tagsRef = useRef(tags);
+    tagsRef.current = tags;
+    const folderIdRef = useRef(folderId);
+    folderIdRef.current = folderId;
 
     // Keep latest onSave and isPending in refs so triggerAutoSave never goes stale
     const onSaveRef = useRef(onSave);
@@ -95,8 +98,10 @@ export function useNoteEditor({ note, onSave, isPending }: UseNoteEditorProps) {
             titleRef.current = note.title;
             const noteTags = (note.tags ?? []).map((tag) => tag.name);
             setTags(noteTags);
-            setTagInput(formatHashtagInput(noteTags));
+            tagsRef.current = noteTags;
+            setTagInput('');
             setFolderId(note.folderId ?? null);
+            folderIdRef.current = note.folderId ?? null;
             // Reset auto-save timer when switching to a different note
             if (note.id !== lastNoteIdRef.current) {
                 lastNoteIdRef.current = note.id;
@@ -135,8 +140,8 @@ export function useNoteEditor({ note, onSave, isPending }: UseNoteEditorProps) {
             if (!currentEditor) return;
             const currentContent = currentEditor.getJSON();
             const currentTitle = titleRef.current.trim() || '';
-            const currentTags = normalizeTagList(tags);
-            const currentFolderId = folderId;
+            const currentTags = normalizeTagList(tagsRef.current);
+            const currentFolderId = folderIdRef.current;
 
             // Don't save if content is completely empty
             const isEmpty = !currentContent ||
@@ -149,7 +154,7 @@ export function useNoteEditor({ note, onSave, isPending }: UseNoteEditorProps) {
             setSaveStatus('saving');
             onSaveRef.current({ title: currentTitle, content: currentContent, tags: currentTags, folderId: currentFolderId });
         }, 1000);
-    }, [tags, folderId]); // no stale tags/folder in autosave payload
+    }, []);
 
     // Keep the ref in sync with the latest callback
     triggerAutoSaveRef.current = triggerAutoSave;
@@ -357,8 +362,10 @@ export function useNoteEditor({ note, onSave, isPending }: UseNoteEditorProps) {
             editor.commands.clearContent();
             setTitle('');
             setTags([]);
+            tagsRef.current = [];
             setTagInput('');
             setFolderId(null);
+            folderIdRef.current = null;
             titleRef.current = '';
             return;
         }
@@ -369,21 +376,45 @@ export function useNoteEditor({ note, onSave, isPending }: UseNoteEditorProps) {
             setTitle(note.title || '');
             const noteTags = (note.tags ?? []).map((tag) => tag.name);
             setTags(noteTags);
-            setTagInput(formatHashtagInput(noteTags));
+            tagsRef.current = noteTags;
+            setTagInput('');
             setFolderId(note.folderId ?? null);
+            folderIdRef.current = note.folderId ?? null;
             titleRef.current = note.title || '';
         }
     }, [note?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    const handleTagsChange = (rawTags: string) => {
-        setTagInput(rawTags);
-        const parsedTags = parseTagsFromInput(rawTags);
-        setTags(parsedTags);
+    const handleTagInputChange = (nextValue: string) => {
+        setTagInput(nextValue);
+    };
+
+    const handleAddTag = (rawTagInput: string = tagInput) => {
+        const parsedTags = parseTagDraft(rawTagInput);
+        if (!parsedTags.length) {
+            setTagInput('');
+            return false;
+        }
+
+        const nextTags = normalizeTagList([...tags, ...parsedTags]);
+        setTags(nextTags);
+        tagsRef.current = nextTags;
+        setTagInput('');
+        triggerAutoSave();
+        return true;
+    };
+
+    const handleRemoveTag = (tagToRemove: string) => {
+        const normalizedTagToRemove = tagToRemove.trim().toLowerCase();
+        const nextTags = tags.filter((tag) => tag.trim().toLowerCase() !== normalizedTagToRemove);
+        setTags(nextTags);
+        tagsRef.current = nextTags;
+        setTagInput('');
         triggerAutoSave();
     };
 
     const handleFolderChange = (nextFolderId: string | null) => {
         setFolderId(nextFolderId);
+        folderIdRef.current = nextFolderId;
         triggerAutoSave();
     };
 
@@ -395,7 +426,9 @@ export function useNoteEditor({ note, onSave, isPending }: UseNoteEditorProps) {
         folderId,
         saveStatus,
         handleTitleChange,
-        handleTagsChange,
+        handleTagInputChange,
+        handleAddTag,
+        handleRemoveTag,
         handleFolderChange,
         handleFileUpload,
         handleCrop,

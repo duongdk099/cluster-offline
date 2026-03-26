@@ -1,5 +1,6 @@
 import { Note, INoteRepository } from '../domain/Note';
 import { randomUUID } from 'crypto';
+import { extractNoteText } from './extractNoteText';
 
 export class CreateNoteUseCase {
     constructor(private noteRepository: INoteRepository) { }
@@ -11,12 +12,15 @@ export class CreateNoteUseCase {
         tagNames?: string[],
         folderId?: string | null,
     ): Promise<Note> {
+        const now = new Date();
         const note: Note = {
             id: randomUUID(),
             userId,
             title,
             content,
-            createdAt: new Date(),
+            contentText: extractNoteText(content),
+            createdAt: now,
+            updatedAt: now,
             tags: [],
             folderId,
         };

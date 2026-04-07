@@ -70,12 +70,13 @@ export function useFolders() {
 
 export function useSearchNotes(query: string, filters?: NoteFilters) {
     const { token } = useAuth();
-    const params = new URLSearchParams({ q: query });
+    const normalizedQuery = query.trim();
+    const params = new URLSearchParams({ q: normalizedQuery });
     if (filters?.tag) params.set('tag', filters.tag);
     if (filters?.folder) params.set('folder', filters.folder);
 
     return useQuery<Note[]>({
-        queryKey: ['notes', 'search', query, filters?.tag || '', filters?.folder || ''],
+        queryKey: ['notes', 'search', normalizedQuery, filters?.tag || '', filters?.folder || ''],
         queryFn: async () => {
             const res = await fetch(`${API_URL}/search?${params.toString()}`, {
                 headers: {
@@ -85,7 +86,7 @@ export function useSearchNotes(query: string, filters?: NoteFilters) {
             if (!res.ok) throw new Error('Failed to search notes');
             return res.json();
         },
-        enabled: !!token && !!query.trim(),
+        enabled: !!token && normalizedQuery.length > 0,
     });
 }
 

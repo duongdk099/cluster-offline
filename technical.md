@@ -1,6 +1,6 @@
 # NotesAides Technical Documentation
 
-Last updated: 2026-03-14
+Last updated: 2026-04-07
 Repository root: `Cluster/`
 
 ## 1. Project Reality Check
@@ -12,7 +12,7 @@ Repository root: `Cluster/`
 - Local Docker orchestration (`docker-compose.yml`)
 - Kubernetes manifests for k3s deployment (`k3s/`)
 
-The implementation currently focuses on authenticated note CRUD, soft-delete/trash, real-time sync notifications, and rich-text editing with image optimization/crop/rotate.
+The implementation currently focuses on authenticated note CRUD, soft-delete/trash, tags/folders organization, real-time sync notifications, and rich-text editing with image optimization/crop/rotate.
 
 The `Prototype.md` describes a broader AI/vector-search vision. Most AI-specific features (LLM routing, semantic graph, vector DB, OCR cloud routing) are not yet implemented in the current codebase.
 
@@ -53,14 +53,17 @@ flowchart LR
     UI --> WASM[image-wasm package\nRust compiled to WASM]
     WASM --> UI
     API --> FS[(uploads/ static files)]
+    API --> TAGS[(tags / folders / note_tags)]
 ```
 
 Key runtime properties:
 - Auth uses JWT bearer tokens (7-day expiry)
 - Notes are user-scoped by `userId`
+- Notes can be grouped by folder and linked to multiple tags
 - Deletion is soft by default (`deleted_at`), with restore and permanent-delete
 - WebSocket broadcast events trigger frontend cache invalidation
 - Editor stores rich content as TipTap JSON in PostgreSQL JSONB
+- Search uses `title`, extracted `content_text`, and JSON text fallback
 
 ## 4. Backend (`api/`) Deep Dive
 
@@ -125,18 +128,19 @@ All `/notes/*` routes require JWT middleware.
 
 `GET /notes`
 - Returns non-deleted notes for authenticated user
-- Ordered by newest `createdAt`
+- Ordered by newest `updatedAt`
+- Accepts optional `tag` and `folder` filters
 
 `GET /notes/:id`
 - Returns note if owned and not soft-deleted
 - `404` if missing
 
 `POST /notes`
-- Creates note with generated UUID and current timestamp
+- Creates note with generated UUID, extracted `contentText`, optional `tags`, and optional `folderId`
 - Emits websocket event `NOTE_CREATED`
 
 `PATCH /notes/:id` and `PUT /notes/:id`
-- Updates title/content
+- Updates title/content and may also replace tags / assign folder
 - Includes retry loop (up to 5 attempts with backoff) to handle race timing after create
 - Emits `NOTE_UPDATED`
 
@@ -158,7 +162,31 @@ All `/notes/*` routes require JWT middleware.
 
 `GET /notes/search?q=<query>`
 - If empty query: returns all non-deleted notes
-- Otherwise text search against `title` and `content::text` using `ILIKE`
+- Supports optional `tag` and `folder` filters
+- Otherwise text search against `title`, `content_text`, and `content::text` using `ILIKE`
+
+Additional note-organization routes:
+
+`GET /notes/tags`
+- Lists tags currently attached to non-deleted notes for the authenticated user
+
+`POST /notes/:id/tags`
+- Adds or reuses a normalized tag for the note
+- Emits `NOTE_UPDATED`
+
+`DELETE /notes/:id/tags/:tagId`
+- Removes a tag from the note
+- Emits `NOTE_UPDATED`
+
+`GET /notes/folders`
+- Lists folders owned by the authenticated user
+
+`POST /notes/folders`
+- Creates or reuses a normalized folder name
+
+`PATCH /notes/:id/folder`
+- Assigns or clears a folder on the note
+- Emits `NOTE_UPDATED`
 
 ### Upload route
 
@@ -204,15 +232,41 @@ Source of truth schema: `api/src/infrastructure/db/schema.ts`
 ### `notes`
 - `id` varchar(255) PK
 - `user_id` FK -> `users.id` with cascade delete
+- `folder_id` FK -> `folders.id` with set-null delete behavior
 - `title` not null
 - `content` JSONB not null
+- `content_text` text not null default `''`
 - `created_at` not null
+- `updated_at` not null
 - `deleted_at` nullable timestamp (soft delete)
+
+### `folders`
+- `id` varchar(255) PK
+- `user_id` FK -> `users.id` with cascade delete
+- `name` not null
+- `normalized_name` not null
+- unique `(user_id, normalized_name)`
+
+### `tags`
+- `id` varchar(255) PK
+- `user_id` FK -> `users.id` with cascade delete
+- `name` not null
+- `normalized_name` not null
+- unique `(user_id, normalized_name)`
+
+### `note_tags`
+- composite PK: `(note_id, tag_id)`
+- `note_id` FK -> `notes.id` with cascade delete
+- `tag_id` FK -> `tags.id` with cascade delete
 
 Migration history:
 - `0000`: initial users + notes (`content` as text)
 - `0001`: add `user_id` FK on notes
 - `0002`: `content` -> JSONB + add `deleted_at`
+- `0003`: add `tags` + `note_tags`
+- `0004`: add `folders` + `notes.folder_id`
+
+Important: committed Drizzle SQL history currently stops at `0004`, while the runtime schema in `schema.ts` also includes `notes.content_text` and `notes.updated_at`. That suggests the repository has relied on `db:push` for at least part of the schema evolution, so migration history is not fully self-describing yet.
 
 ## 4.6 Maintenance scripts
 
@@ -290,6 +344,10 @@ There are two active patterns:
 
 This mixed approach is functional but increases complexity because data can be changed via either server action or client mutation path.
 
+Current note metadata coverage:
+- Server actions currently cover note CRUD/search/deleted-note fetch
+- React Query hooks also cover tags, folders, tag assignment/removal, and folder assignment
+
 ## 5.5 Note UX flows
 
 ### Home (`/`)
@@ -320,6 +378,7 @@ This mixed approach is functional but increases complexity because data can be c
 - On note mutation events, invalidates:
   - `['notes']`
   - `['note', noteId]` when available
+- Tag/folder views stay consistent because most write paths invalidate `['tags']` and `['folders']` after successful mutations
 
 This keeps multi-tab/multi-client views eventually consistent.
 
@@ -442,6 +501,7 @@ Namespace:
 Security/config:
 - Secret `db-secret` with `POSTGRES_PASSWORD`, `JWT_SECRET` (base64)
 - ConfigMap `app-config` with DB host/name and `PORT`
+- Ingress terminates TLS, but application-layer security headers are not configured in the API itself
 
 Database:
 - PVC `postgres-pvc` (1Gi)
@@ -493,7 +553,12 @@ Primary shape used front-back:
 - `userId: string` (backend)
 - `title: string`
 - `content: JSONContent` (TipTap JSON)
+- `contentText?: string`
+- `tags?: Array<{ id, name, color? }>`
+- `folderId?: string|null`
+- `folder?: { id, name, color? } | null`
 - `createdAt: Date|string`
+- `updatedAt?: Date|string`
 - `deletedAt?: Date|string|null`
 
 ## 10.2 Auth response
@@ -519,26 +584,35 @@ Message body:
 3. Auth token storage uses JS-readable cookie + localStorage.
 - Easier integration with server actions, but weaker against XSS than HttpOnly cookie session approaches.
 
-4. Dual data-access model (server actions + client mutations) raises complexity.
+4. No explicit transaction boundaries for multi-step note updates.
+- Create/update flows may perform several DB writes (note row, tags, folder linkage) without `db.transaction(...)`, so partial success is possible if one step fails mid-flow.
+
+5. Dual data-access model (server actions + client mutations) raises complexity.
 - Functional, but harder to reason about consistency and tracing write paths.
 
-5. Search is SQL `ILIKE` over `title` and `content::text`.
+6. Search is SQL `ILIKE` over `title`, `content_text`, and `content::text`.
 - No full-text or vector index currently.
 
-6. Missing explicit test suite.
+7. Missing explicit test suite.
 - No unit/integration/e2e test folders or scripts detected in root/api/front package scripts.
 
-7. WASM package generation dependency can break cold setup.
+8. WASM package generation dependency can break cold setup.
 - Frontend depends on `image-wasm/pkg`, which is generated artifact.
 
-8. Soft-delete cleanup is manual/scheduled externally.
+9. Soft-delete cleanup is manual/scheduled externally.
 - No in-repo scheduler orchestration provided.
 
-9. Type/interface drift exists in some backend helper code.
+10. Type/interface drift exists in some backend helper code.
 - `notifyChange` type union in `api/src/infrastructure/websocket.ts` includes only create/update/delete, while routes emit restore/permanent-delete too.
 - `InMemoryNoteRepository` does not implement all methods declared in `INoteRepository`.
 
-10. Minor auth/reset flow implementation mismatches.
+11. Migration history is incomplete relative to the declared runtime schema.
+- `schema.ts` includes `content_text` and `updated_at`, but the committed SQL migrations do not currently show when those columns were introduced.
+
+12. API security headers are minimal.
+- CORS is configured, but headers such as CSP, HSTS, `X-Frame-Options`, and `Referrer-Policy` are not set by application middleware.
+
+13. Minor auth/reset flow implementation mismatches.
 - `forget-password` stores generated token but does not log or return it (comment still mentions console behavior).
 - Login page calls `login()` (which already redirects) and also directly pushes to `/`.
 
@@ -562,7 +636,140 @@ Message body:
 5. TipTap inserts image node with URL.
 6. Subsequent editor autosave persists updated TipTap JSON content.
 
-## 13. Setup Commands Cheat Sheet
+## 12.3 Cache invalidation sequence
+
+```mermaid
+sequenceDiagram
+    participant Editor as Frontend editor
+    participant API as Hono API
+    participant WS as WebSocket channel
+    participant RQ as React Query cache
+
+    Editor->>API: PATCH /notes/:id
+    API->>API: Persist note update
+    API-->>Editor: Updated note JSON
+    API->>WS: publish NOTE_UPDATED
+    WS-->>RQ: invalidate ['notes']
+    WS-->>RQ: invalidate ['note', id]
+    RQ-->>Editor: Refetch or reuse surgically updated cache
+```
+
+## 13. Code & Logic
+
+### 13.1 Transaction Management
+
+Current state:
+- The repository does not currently use explicit `db.transaction(...)` blocks in the note write paths.
+- `CreateNoteUseCase` creates the note first, then adds tags in follow-up repository calls.
+- `UpdateNoteUseCase` may update note fields, assign a folder, and add/remove tags as separate DB operations.
+
+Practical implication:
+- Most operations are simple and user-scoped, but multi-step writes are not atomic.
+- A failure after the first successful write can leave the database in a partially updated state until the next retry or manual correction.
+
+Recommendation:
+- Wrap create/update flows that coordinate note row changes plus tag/folder mutations in a single transaction at the repository boundary.
+- This becomes more important as metadata and side effects continue to expand.
+
+### 13.2 Security Header
+
+Current state:
+- The API configures CORS with explicit origins, methods, headers, and credentials.
+- TLS is expected to be handled by the ingress/reverse proxy in deployed environments.
+- No dedicated middleware currently sets headers such as:
+  - `Content-Security-Policy`
+  - `Strict-Transport-Security`
+  - `X-Frame-Options`
+  - `Referrer-Policy`
+  - `X-Content-Type-Options`
+
+Interpretation:
+- The current setup is enough for local development and basic deployment, but it is not yet a hardened response-header strategy.
+- Because auth tokens are readable from browser JavaScript today, XSS prevention matters more than usual.
+
+Recommendation:
+- Add one response-header middleware in `api/src/index.ts` or enforce equivalent headers at ingress level, then document the chosen source of truth.
+
+### 13.3 Caching Strategy
+
+The application uses a hybrid cache model:
+- Server actions fetch note data with `cache: 'no-store'`, so server-rendered note reads do not rely on Next.js fetch caching.
+- Server mutations call `revalidatePath(...)` for route-level refresh after writes.
+- Client-side note lists/search/trash/tags/folders use React Query.
+- WebSocket events trigger client cache invalidation for cross-tab and cross-session freshness.
+- Some client updates are optimistic-ish or surgical, especially `useUpdateNote`, which patches cached note data before relying on a refetch fallback.
+
+Current tradeoff:
+- This strategy favors freshness and simplicity over aggressive caching.
+- It works well for collaborative note edits, but the split between server-action cache revalidation and client-query invalidation increases mental overhead.
+
+```mermaid
+flowchart TD
+    SA[Server Actions] -->|fetch cache: no-store| API[API]
+    SA -->|revalidatePath| NEXT[Next.js route cache]
+    UI[Client Components] -->|useQuery/useMutation| RQ[React Query]
+    RQ --> API
+    API --> WS[WebSocket events]
+    WS -->|invalidateQueries| RQ
+```
+
+## 14. Workflow
+
+### 14.1 Branching strategy
+
+Repository reality:
+- No branch policy, merge rule, or CI-enforced workflow is encoded in the repository itself.
+- There is no visible GitHub Actions or branch-protection config in this codebase snapshot.
+
+Recommended team workflow for this repo:
+1. Branch from `main` using a short-lived feature/fix branch.
+2. Keep schema and API/frontend contract changes in the same branch when they must ship together.
+3. Regenerate Drizzle artifacts in the same branch as schema edits.
+4. Merge small, reviewable changes instead of long-running branches, because frontend/server-action/API interactions drift quickly.
+
+Suggested naming:
+- `feature/<topic>`
+- `fix/<topic>`
+- `chore/<topic>`
+
+### 14.2 Migration Workflow
+
+Current workflow in this repository:
+1. Edit Drizzle schema in `api/src/infrastructure/db/schema.ts`.
+2. Run `bun run db:generate` to emit SQL into `api/drizzle/`.
+3. Run `bun run db:push` to apply schema changes to the target database.
+
+Observed caveat:
+- The checked-in migration history does not fully explain the current runtime schema, so `db:push` has likely been used to advance schema state beyond the reviewed SQL files.
+
+Recommended tightening:
+1. Treat `schema.ts` and `api/drizzle/*.sql` as a pair that must change together.
+2. Review generated SQL before applying it.
+3. Prefer committing each logical schema change as its own migration file.
+4. Use `db:push` carefully in shared or production-like environments because it can hide migration-history gaps.
+
+```mermaid
+flowchart LR
+    SCHEMA[schema.ts change] --> GEN[bun run db:generate]
+    GEN --> SQL[api/drizzle/*.sql]
+    SQL --> REVIEW[Review SQL]
+    REVIEW --> PUSH[bun run db:push]
+    PUSH --> DB[(PostgreSQL)]
+```
+
+## 15. Diagrams
+
+This document already includes a system architecture diagram, and the sections above now add focused diagrams for:
+- cache invalidation flow
+- hybrid caching strategy
+- migration workflow
+
+Additional diagram opportunities if the documentation grows further:
+- auth login / token lifecycle
+- note create/update path with tags and folders
+- upload/image-processing pipeline split between WASM, canvas, API, and storage
+
+## 16. Setup Commands Cheat Sheet
 
 From repository root:
 
@@ -596,7 +803,7 @@ k3s deploy:
 kubectl apply -f k3s/
 ```
 
-## 14. Recommended Next Engineering Steps
+## 17. Recommended Next Engineering Steps
 
 1. Implement proper email delivery for reset-password tokens.
 2. Consolidate note writes through one strategy (server actions or client mutations) to reduce complexity.
@@ -605,7 +812,7 @@ kubectl apply -f k3s/
 5. Add DB indexes/full-text strategy and then vector layer when semantic search is introduced.
 6. Add CI pipeline to build Rust WASM package and ensure `front` can install from generated artifacts.
 
-## 15. File Responsibilities Index
+## 18. File Responsibilities Index
 
 This index maps the most important files to their runtime role.
 

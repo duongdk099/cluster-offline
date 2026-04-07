@@ -178,7 +178,8 @@ function HomeContent() {
     tag: selectedTag || undefined,
     folder: selectedFolder || undefined,
   });
-  const { data: searchResults, isLoading: isSearching } =
+  const normalizedSearchQuery = searchQuery.trim();
+  const { data: searchResults = [], isLoading: isSearching, isError: isSearchError } =
     useSearchNotes(searchQuery, {
       tag: selectedTag || undefined,
       folder: selectedFolder || undefined,
@@ -207,8 +208,10 @@ function HomeContent() {
     return null;
   }
 
-  const notes = searchQuery.trim() ? searchResults : allNotes;
-  const isNotesLoading = searchQuery.trim() ? isSearching : isLoading;
+  const isSearchActive = normalizedSearchQuery.length > 0;
+  const notes = isSearchActive ? searchResults : allNotes;
+  const isNotesLoading = isSearchActive ? isSearching : isLoading;
+  const isNotesError = isSearchActive ? isSearchError : isError;
 
   return (
     <main className="app-shell">
@@ -288,7 +291,7 @@ function HomeContent() {
             <NoteList
               notes={notes}
               isLoading={isNotesLoading}
-              isError={isError}
+              isError={isNotesError}
               selectedId={undefined}
               onSelect={(note) => router.push(`/notes/${note.id}`)}
               searchQuery={searchQuery}
@@ -309,7 +312,7 @@ function HomeContent() {
               <NoteList
                 notes={notes}
                 isLoading={isNotesLoading}
-                isError={isError}
+                isError={isNotesError}
                 selectedId={undefined}
                 onSelect={(note) => router.push(`/notes/${note.id}`)}
                 searchQuery={searchQuery}

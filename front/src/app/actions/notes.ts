@@ -3,6 +3,7 @@
 import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import type { JSONContent } from '@tiptap/core';
 
 const API_URL =
   process.env.API_INTERNAL_URL ||
@@ -25,7 +26,7 @@ async function getAuthHeaders() {
 
 export interface NoteData {
   title: string;
-  content: any;
+  content: JSONContent;
   tags?: string[];
   folderId?: string | null;
 }

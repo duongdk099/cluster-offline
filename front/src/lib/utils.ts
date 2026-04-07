@@ -22,7 +22,7 @@ export function formatRelativeTime(date: string | Date) {
     return then.toLocaleDateString();
 }
 
-export function stripHtml(content: JSONContent | string | any): string {
+export function stripHtml(content: JSONContent | string | null | undefined): string {
     if (typeof content === 'string') {
         if (typeof window === 'undefined') return content;
         const doc = new DOMParser().parseFromString(content, 'text/html');
@@ -43,7 +43,7 @@ export function stripHtml(content: JSONContent | string | any): string {
     return text.trim();
 }
 
-export function extractFirstImage(content: JSONContent | string | any): string | null {
+export function extractFirstImage(content: JSONContent | string | null | undefined): string | null {
     if (typeof content === 'string') {
         const match = content.match(/<img [^>]*src="([^"]+)"/);
         return match ? normalizeUploadedImageUrl(match[1]) : null;

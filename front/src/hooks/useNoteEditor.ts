@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
+import type { Editor, JSONContent } from '@tiptap/core';
 import { TaskList } from '@tiptap/extension-task-list';
 import { TaskItem } from '@tiptap/extension-task-item';
 import { Table } from '@tiptap/extension-table';
@@ -14,8 +15,8 @@ import { ResizableImage } from '../components/editor/extensions/ResizableImage';
 import { Note } from '../lib/types';
 import { optimizeImage, cropImage, rotateImage } from '../lib/imageOptimizer';
 import { useAuth } from '../contexts/AuthContext';
-import type { JSONContent } from '@tiptap/core';
 import { normalizeUploadedImageUrl } from '../lib/utils';
+import type { PixelCrop } from 'react-image-crop';
 
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'optimizing' | 'cropping' | 'rotating';
 
@@ -113,7 +114,7 @@ export function useNoteEditor({ note, onSave, isPending }: UseNoteEditorProps) {
         }
     }, [note]);
 
-    const editorRef = useRef<any>(null);
+    const editorRef = useRef<Editor | null>(null);
 
     // Stable ref to triggerAutoSave — always points to the latest version.
     // This is what the editor's onUpdate calls, avoiding stale closures.
@@ -261,7 +262,7 @@ export function useNoteEditor({ note, onSave, isPending }: UseNoteEditorProps) {
         }
     };
 
-    const handleCrop = async (file: File, pixelCrop: any) => {
+    const handleCrop = async (file: File, pixelCrop: PixelCrop) => {
         if (!editor || !token) return;
 
         try {

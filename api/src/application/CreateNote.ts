@@ -1,4 +1,4 @@
-import { Note, INoteRepository } from '../domain/Note';
+import { Note, INoteRepository, JsonValue } from '../domain/Note';
 import { randomUUID } from 'crypto';
 import { extractNoteText } from './extractNoteText';
 
@@ -8,7 +8,7 @@ export class CreateNoteUseCase {
     async execute(
         userId: string,
         title: string,
-        content: any,
+        content: JsonValue,
         tagNames?: string[],
         folderId?: string | null,
     ): Promise<Note> {

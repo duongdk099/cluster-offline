@@ -23,8 +23,8 @@ authRoutes.post('/register', async (c) => {
         const body = await c.req.json();
         const user = await registerUserUseCase.execute(body.email, body.password);
         return c.json(user, 201);
-    } catch (error: any) {
-        return c.json({ error: error.message }, 400);
+    } catch (error: unknown) {
+        return c.json({ error: error instanceof Error ? error.message : 'Registration failed' }, 400);
     }
 });
 
@@ -33,8 +33,8 @@ authRoutes.post('/login', async (c) => {
         const body = await c.req.json();
         const result = await loginUserUseCase.execute(body.email, body.password);
         return c.json(result);
-    } catch (error: any) {
-        return c.json({ error: error.message }, 401);
+    } catch (error: unknown) {
+        return c.json({ error: error instanceof Error ? error.message : 'Login failed' }, 401);
     }
 });
 
@@ -46,8 +46,8 @@ authRoutes.post('/forget-password', async (c) => {
         // In a real app we wouldn't return the token, we'd email it.
         // For local development, check the backend console for the token.
         return c.json({ message: 'If an account exists, a reset link was generated.' });
-    } catch (error: any) {
-        return c.json({ error: error.message }, 400);
+    } catch (error: unknown) {
+        return c.json({ error: error instanceof Error ? error.message : 'Password reset request failed' }, 400);
     }
 });
 
@@ -61,8 +61,8 @@ authRoutes.post('/reset-password', async (c) => {
         }
 
         return c.json({ message: 'Password reset successfully' });
-    } catch (error: any) {
-        return c.json({ error: error.message }, 400);
+    } catch (error: unknown) {
+        return c.json({ error: error instanceof Error ? error.message : 'Password reset failed' }, 400);
     }
 });
 

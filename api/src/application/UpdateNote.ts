@@ -1,4 +1,4 @@
-import { Note, INoteRepository } from '../domain/Note';
+import { Note, INoteRepository, JsonValue } from '../domain/Note';
 import { extractNoteText } from './extractNoteText';
 
 export class UpdateNoteUseCase {
@@ -8,7 +8,7 @@ export class UpdateNoteUseCase {
         id: string,
         userId: string,
         title?: string,
-        content?: any,
+        content?: JsonValue,
         tagNames?: string[],
         folderId?: string | null,
     ): Promise<Note | null> {

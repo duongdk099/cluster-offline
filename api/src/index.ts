@@ -11,6 +11,10 @@ import { wsEvents } from './infrastructure/websocket'
 const app = new Hono()
 const { upgradeWebSocket, websocket } = createBunWebSocket()
 
+type SubscribableSocket = {
+    subscribe: (channel: string) => void;
+}
+
 const isProduction = process.env.NODE_ENV === 'production'
 const trustProxyHeaders = process.env.TRUST_PROXY_HEADERS === 'true'
 
@@ -79,7 +83,7 @@ app.get(
 
             return {
                 onOpen(evt, ws) {
-                    ; (ws.raw as any).subscribe(`user_${userId}`)
+                    (ws.raw as SubscribableSocket).subscribe(`user_${userId}`)
                 },
                 onClose() {
                     // Connection closed

@@ -1,4 +1,11 @@
 // Notes Application Interfaces and Types
+export type JsonPrimitive = string | number | boolean | null;
+export type JsonValue = JsonPrimitive | JsonObject | JsonValue[];
+
+export interface JsonObject {
+    [key: string]: JsonValue;
+}
+
 export interface NoteTag {
     id: string;
     name: string;
@@ -15,7 +22,7 @@ export interface Note {
     id: string;
     userId: string;
     title: string;
-    content: any;
+    content: JsonValue;
     contentText: string;
     tags?: NoteTag[];
     folderId?: string | null;

@@ -63,3 +63,12 @@ export function extractFirstImage(content: JSONContent | string | null | undefin
     }
     return null;
 }
+
+export function buildNoteSnippet(content: JSONContent | string | null | undefined, fallbackText?: string): string {
+    const baseText = fallbackText?.trim() || stripHtml(content);
+    if (!baseText) {
+        return '';
+    }
+
+    return baseText.replace(/\s+/g, ' ').trim().slice(0, 220);
+}

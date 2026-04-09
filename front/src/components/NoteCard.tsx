@@ -1,16 +1,14 @@
-import { Note } from '../lib/types';
-import { formatRelativeTime, stripHtml, extractFirstImage } from '../lib/utils';
+import { NoteSummary } from '../lib/types';
+import { formatRelativeTime } from '../lib/utils';
 
 interface NoteCardProps {
-    note: Note;
+    note: NoteSummary;
     isActive?: boolean;
     onClick?: () => void;
     onDragStart?: (e: React.DragEvent<HTMLButtonElement>) => void;
 }
 
 export function NoteCard({ note, isActive, onClick, onDragStart }: NoteCardProps) {
-    const snippet = stripHtml(note.content);
-    const imageUrl = extractFirstImage(note.content);
     const visibleTags = (note.tags ?? []).slice(0, 3);
 
     return (
@@ -43,7 +41,7 @@ export function NoteCard({ note, isActive, onClick, onDragStart }: NoteCardProps
                             {formatRelativeTime(note.updatedAt ?? note.createdAt)}
                         </span>
                         <p data-slot="snippet" className="text-[12px] md:text-[13px] text-gray-500 line-clamp-1 leading-snug">
-                            {snippet || 'No additional text'}
+                            {note.snippet || 'No additional text'}
                         </p>
                     </div>
 
@@ -63,8 +61,8 @@ export function NoteCard({ note, isActive, onClick, onDragStart }: NoteCardProps
                     )}
                 </div>
 
-                {imageUrl && (
-                    <div data-slot="preview-image" className="shrink-0 w-11 h-11 md:w-12 md:h-12 rounded-xl overflow-hidden border border-apple-border/50 bg-gray-50 bg-center bg-cover" style={{ backgroundImage: `url(${imageUrl})` }} />
+                {note.previewImage && (
+                    <div data-slot="preview-image" className="shrink-0 w-11 h-11 md:w-12 md:h-12 rounded-xl overflow-hidden border border-apple-border/50 bg-gray-50 bg-center bg-cover" style={{ backgroundImage: `url(${note.previewImage})` }} />
                 )}
             </div>
 

@@ -1,12 +1,11 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Sidebar } from '@/components/Sidebar';
 import { NoteList } from '@/components/NoteList';
 import { MainEditor } from '@/components/MainEditor';
-import { createNote } from '@/app/actions/notes';
-import { useNotes } from '@/hooks/useNotes';
+import { useCreateNote, useNotes } from '@/hooks/useNotes';
 import { useAuth } from '@/contexts/AuthContext';
 import type { JSONContent } from '@tiptap/core';
 import { ChevronDown, ChevronUp, Home, LogOutIcon, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -15,17 +14,18 @@ export function EditorWrapper() {
   const router = useRouter();
   const { logout } = useAuth();
   const { data: notes, isLoading, isError } = useNotes();
-  const [isPending, startTransition] = useTransition();
+  const createNote = useCreateNote();
   const [showListMobile, setShowListMobile] = useState(false);
   const [showLeftPanels, setShowLeftPanels] = useState(true);
 
   const handleSave = (data: { title: string; content: JSONContent; tags?: string[]; folderId?: string | null }) => {
-    startTransition(async () => {
-      const result = await createNote(data);
-      if (result && !result.success) {
-        console.error('Failed to create note:', result.error);
-      }
-      // Redirect happens in server action on success
+    createNote.mutate(data, {
+      onSuccess: (note) => {
+        router.replace(`/notes/${note.id}`);
+      },
+      onError: (error) => {
+        console.error('Failed to create note locally:', error);
+      },
     });
   };
 
@@ -110,7 +110,7 @@ export function EditorWrapper() {
         key="new"
         note={null}
         onSave={handleSave}
-        isPending={isPending}
+        isPending={createNote.isPending}
       />
       </div>
       </div>

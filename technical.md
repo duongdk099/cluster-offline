@@ -1,6 +1,6 @@
 # NotesAides Technical Documentation
 
-Last updated: 2026-04-07
+Last updated: 2026-04-09
 Repository root: `Cluster/`
 
 ## 1. Project Reality Check
@@ -46,7 +46,8 @@ Root `package.json` scripts:
 
 ```mermaid
 flowchart LR
-    UI[Next.js Frontend\nReact + TipTap + React Query] -->|HTTP Bearer JWT| API[Hono API on Bun]
+    UI[Next.js Frontend\nReact + TipTap + React Query] -->|local-first reads/writes| IDB[(IndexedDB)]
+    UI -->|HTTP Bearer JWT sync| API[Hono API on Bun]
     UI -->|WebSocket token query| WS[/ws]
     API --> DB[(PostgreSQL)]
     WS --> API
@@ -59,9 +60,13 @@ flowchart LR
 Key runtime properties:
 - Auth uses JWT bearer tokens (7-day expiry)
 - Notes are user-scoped by `userId`
+- Frontend note UX is local-first using IndexedDB
+- API database remains the source of truth after sync
+- Full note bodies and lightweight note summaries are stored separately in IndexedDB
+- Note writes are queued in a persistent outbox and flushed in the background
 - Notes can be grouped by folder and linked to multiple tags
 - Deletion is soft by default (`deleted_at`), with restore and permanent-delete
-- WebSocket broadcast events trigger frontend cache invalidation
+- WebSocket broadcast events refresh or reconcile the local store
 - Editor stores rich content as TipTap JSON in PostgreSQL JSONB
 - Search uses `title`, extracted `content_text`, and JSON text fallback
 
@@ -136,7 +141,8 @@ All `/notes/*` routes require JWT middleware.
 - `404` if missing
 
 `POST /notes`
-- Creates note with generated UUID, extracted `contentText`, optional `tags`, and optional `folderId`
+- Creates note with extracted `contentText`, optional `tags`, and optional `folderId`
+- Accepts a client-provided `id` so local-first note creation can keep the same note identifier across IndexedDB and Postgres
 - Emits websocket event `NOTE_CREATED`
 
 `PATCH /notes/:id` and `PUT /notes/:id`
@@ -215,7 +221,7 @@ Flow:
 Event payload shape:
 - `{ type, noteId }`
 
-Frontend reacts by invalidating React Query caches.
+Frontend currently reacts by reconciling note changes into IndexedDB, then updating list/detail reads from local state.
 
 ## 4.5 Data model and persistence
 
@@ -327,62 +333,106 @@ App routes under `src/app/` use App Router page components and wrappers.
 
 Important: token cookie is set from JS and is not `HttpOnly`, so server actions can read it but it is also script-accessible.
 
-## 5.4 Data access patterns (hybrid)
+## 5.4 Data access patterns (local-first)
 
-There are two active patterns:
+The primary note path is now local-first:
 
-1. Server Actions (`src/app/actions/notes.ts`)
-- Uses `cookies()` to read `token`
-- Performs authenticated fetches server-side
-- Uses `revalidatePath`
-- `createNote` redirects to `/notes/<id>` on success
+1. IndexedDB-backed repositories/services
+- `src/lib/notes/localDb.ts` defines the browser database
+- `src/lib/notes/localNotesRepository.ts` handles local note reads/writes
+- `src/lib/notes/remoteNotesRepository.ts` handles remote sync calls
+- `src/lib/notes/notesService.ts` orchestrates local-first reads, local writes, outbox flushes, and remote reconciliation
 
-2. Client hooks (`src/hooks/useNotes.ts`)
-- Uses React Query with token from `AuthContext`
-- Handles list/search/deleted queries and note mutations
-- Mutations invalidate or surgically update caches
+2. React hooks
+- `src/hooks/useNotes.ts` reads note lists/search/deleted notes from IndexedDB first
+- `src/hooks/useLocalFirstNote.ts` reads note detail from IndexedDB first
+- Hooks fall back to API only when local data is missing or a refresh path decides remote bootstrap is needed
 
-This mixed approach is functional but increases complexity because data can be changed via either server action or client mutation path.
+3. Server Actions
+- `src/app/actions/notes.ts` still exists, but the live note CRUD path is no longer centered on server actions
+- Current local-first note create/update/delete flows use client hooks + IndexedDB + background sync instead
 
-Current note metadata coverage:
-- Server actions currently cover note CRUD/search/deleted-note fetch
-- React Query hooks also cover tags, folders, tag assignment/removal, and folder assignment
+Important note:
+- The app still has server fallback for cold start, missing note detail, and eventual reconciliation
+- The note interaction model is no longer “every edit hits the API directly”
+- React Query is still present, but it is no longer the primary source of truth for note content
 
-## 5.5 Note UX flows
+## 5.5 Frontend local persistence model
+
+IndexedDB stores:
+- `notes`: full note bodies for detail/editor usage
+- `note_summaries`: lightweight records for list/search/deleted screens
+- `mutations`: persistent outbox of pending note mutations
+- `sync_meta`: timestamps/metadata for refresh policy
+
+`note_summaries` exists specifically to reduce local resource usage:
+- list views do not need full TipTap JSON
+- search does not need to scan full note bodies
+- UI cards can use precomputed `snippet` and `previewImage`
+
+Summary fields include:
+- `id`, `title`
+- `snippet`
+- `previewImage`
+- `contentText`
+- tags/folder metadata
+- timestamps
+- local sync state and sync error
+
+## 5.6 Note UX flows
 
 ### Home (`/`)
-- Loads all notes using `useNotes`
-- Optional search using debounced sidebar input + `useSearchNotes`
+- Loads note summaries using `useNotes`
+- Optional search using local-first `useSearchNotes`
 - Left sidebar + middle note list + right overview/stats panel
+- List and overview use summary data rather than full note bodies
+- Note list rendering is windowed to avoid rendering every row at once
 
 ### New note (`/notes/new`)
 - Renders editor with `note={null}`
-- Autosave triggers `createNote` server action
-- On first successful save, redirect to actual note ID route
+- Autosave creates the note locally first
+- A client UUID is generated immediately
+- The note is written to IndexedDB and queued in the outbox
+- The route then transitions to `/notes/<id>` using the same client/server note id
+- Background sync later persists the note to the API
 
 ### Existing note (`/notes/[id]`)
-- Server fetch via `getNote(id)` (server action)
-- Client wrapper updates note through `useUpdateNote`
-- Delete action calls server action `deleteNote` and redirects to `/`
+- Detail loads through a client-side local-first hook
+- If the note exists locally, the editor opens from IndexedDB immediately
+- If missing locally, the app falls back to API fetch for that note and stores it locally
+- Updates are written locally first and enqueued for background sync
+- Delete is local-first, then synced to the API
 
 ### Trash (`/notes/deleted`)
 - Uses `useDeletedNotes`
-- Restore and permanent delete via client mutations
+- Restore and permanent delete are also local-first note mutations
 - Supports empty-trash action by iterating current deleted notes
 
-## 5.6 Real-time synchronization
+## 5.7 Real-time synchronization
 
 `useSync` hook:
 - Opens WebSocket at `${NEXT_PUBLIC_WS_URL}?token=<token>`
 - Auto-reconnect with exponential backoff up to 30s
-- On note mutation events, invalidates:
-  - `['notes']`
-  - `['note', noteId]` when available
-- Tag/folder views stay consistent because most write paths invalidate `['tags']` and `['folders']` after successful mutations
+- Periodically flushes the local outbox and also flushes on reconnect/online events
+- On note websocket events, fetches or reconciles affected notes into IndexedDB
+- UI updates indirectly because list/detail hooks read from local state
+- Tag/folder views are still more API-first than note content flows
 
-This keeps multi-tab/multi-client views eventually consistent.
+This keeps multi-tab/multi-client views eventually consistent while preserving local-first UX.
 
-## 5.7 Editor internals (TipTap)
+## 5.8 Performance-oriented local data design
+
+To reduce browser resource usage while keeping note UX fast:
+- Full note bodies and lightweight summaries are stored separately
+- List-like screens read `note_summaries` instead of full TipTap JSON
+- Summary records include precomputed `snippet` and `previewImage`
+- List rendering uses windowing so the DOM does not mount every note row at once
+- Search currently runs over summaries rather than full note bodies
+
+Current limitation:
+- Local search is still summary-scan based rather than a dedicated browser-side index
+
+## 5.9 Editor internals (TipTap)
 
 Editor core lives in `useNoteEditor` + `MainEditor`.
 
@@ -401,7 +451,7 @@ Autosave behavior:
 - Retries pending changes once previous save finishes
 - Save status indicator states: `idle`, `saving`, `saved`, `optimizing`, `cropping`, `rotating`
 
-## 5.8 Image workflow in editor
+## 5.10 Image workflow in editor
 
 User can:
 - Drop/paste image
@@ -418,7 +468,7 @@ Pipeline:
 Special handling:
 - HEIC/HEIF uploads are rejected client-side with alert.
 
-## 5.9 Styling and theming
+## 5.11 Styling and theming
 
 `globals.css` defines:
 - CSS variables for light/dark palette

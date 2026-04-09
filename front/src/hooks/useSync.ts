@@ -1,16 +1,63 @@
 import { useEffect, useRef } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
+import { getUserIdFromToken } from '../lib/auth';
+import { notesService } from '../lib/notes/notesService';
+import { NOTES_OUTBOX_EVENT } from '../lib/notes/localNotesRepository';
 
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001/ws';
 
 export function useSync() {
     const { token } = useAuth();
-    const queryClient = useQueryClient();
+    const userId = getUserIdFromToken(token);
     const socketRef = useRef<WebSocket | null>(null);
+    const syncInFlightRef = useRef(false);
 
     useEffect(() => {
-        if (!token) {
+        if (!token || !userId) {
+            return;
+        }
+
+        let cancelled = false;
+
+        const runSync = async () => {
+            if (cancelled || syncInFlightRef.current) {
+                return;
+            }
+
+            if (typeof navigator !== 'undefined' && !navigator.onLine) {
+                return;
+            }
+
+            syncInFlightRef.current = true;
+            try {
+                await notesService.flushOutbox(userId, token);
+            } finally {
+                syncInFlightRef.current = false;
+            }
+        };
+
+        const handleOutboxChanged = () => {
+            void runSync();
+        };
+
+        const interval = window.setInterval(() => {
+            void runSync();
+        }, 3000);
+
+        window.addEventListener('online', handleOutboxChanged);
+        window.addEventListener(NOTES_OUTBOX_EVENT, handleOutboxChanged);
+        void runSync();
+
+        return () => {
+            cancelled = true;
+            window.clearInterval(interval);
+            window.removeEventListener('online', handleOutboxChanged);
+            window.removeEventListener(NOTES_OUTBOX_EVENT, handleOutboxChanged);
+        };
+    }, [token, userId]);
+
+    useEffect(() => {
+        if (!token || !userId) {
             if (socketRef.current) {
                 socketRef.current.close();
                 socketRef.current = null;
@@ -33,18 +80,14 @@ export function useSync() {
             };
 
             socket.onmessage = (event) => {
-                try {
+                void (async () => {
+                    try {
                     const data = JSON.parse(event.data);
-                    const noteMutatingEvents = ['NOTE_UPDATED', 'NOTE_CREATED', 'NOTE_DELETED', 'NOTE_RESTORED', 'NOTE_PERMANENTLY_DELETED'];
-                    if (noteMutatingEvents.includes(data.type)) {
-                        queryClient.invalidateQueries({ queryKey: ['notes'] });
-                        if (data.noteId) {
-                            queryClient.invalidateQueries({ queryKey: ['note', data.noteId] });
-                        }
+                    await notesService.applyRemoteNoteEvent(userId, token, data.type, data.noteId);
+                    } catch (err) {
+                        console.error('[WS] Failed to process message:', err);
                     }
-                } catch (err) {
-                    console.error('[WS] Failed to parse message:', err);
-                }
+                })();
             };
 
             socket.onclose = () => {
@@ -71,5 +114,5 @@ export function useSync() {
                 socketRef.current = null;
             }
         };
-    }, [token, queryClient]);
+    }, [token, userId]);
 }

@@ -11,10 +11,11 @@ export class CreateNoteUseCase {
         content: JsonValue,
         tagNames?: string[],
         folderId?: string | null,
+        noteId?: string,
     ): Promise<Note> {
         const now = new Date();
         const note: Note = {
-            id: randomUUID(),
+            id: noteId ?? randomUUID(),
             userId,
             title,
             content,

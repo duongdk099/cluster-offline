@@ -125,6 +125,7 @@ noteRoutes.post('/', async (c) => {
     const payload = c.get('jwtPayload') as { sub: string };
     const body = await c.req.json();
     const tags = sanitizeTagNames(body.tags);
+    const noteId = typeof body.id === 'string' && body.id.trim() ? body.id : undefined;
     const folderId = body.folderId === undefined || body.folderId === null
         ? null
         : (typeof body.folderId === 'string' ? body.folderId : undefined);
@@ -136,7 +137,7 @@ noteRoutes.post('/', async (c) => {
         return c.json({ error: 'Invalid folderId format' }, 400);
     }
 
-    const note = await createNoteUseCase.execute(payload.sub, body.title, body.content, tags, folderId);
+    const note = await createNoteUseCase.execute(payload.sub, body.title, body.content, tags, folderId, noteId);
 
     // Notify clients
     notifyChange(payload.sub, 'NOTE_CREATED', note.id);

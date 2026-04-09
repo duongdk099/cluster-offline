@@ -1,18 +1,32 @@
-import { Note } from '../lib/types';
+import { NoteSummary } from '../lib/types';
 import { NoteCard } from './NoteCard';
 import { SearchIcon, XIcon } from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
 
 interface NoteListProps {
-    notes?: Note[];
+    notes?: NoteSummary[];
     isLoading: boolean;
     isError: boolean;
     selectedId?: string;
-    onSelect: (note: Note) => void;
+    onSelect: (note: NoteSummary) => void;
     searchQuery?: string;
     onClearSearch?: () => void;
 }
 
 export function NoteList({ notes, isLoading, isError, selectedId, onSelect, searchQuery, onClearSearch }: NoteListProps) {
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const [scrollTop, setScrollTop] = useState(0);
+    const itemHeight = 92;
+    const overscan = 10;
+    const viewportHeight = 560;
+    const totalCount = notes?.length || 0;
+    const startIndex = Math.max(0, Math.floor(scrollTop / itemHeight) - overscan);
+    const visibleCount = Math.ceil(viewportHeight / itemHeight) + overscan * 2;
+    const endIndex = Math.min(totalCount, startIndex + visibleCount);
+    const visibleNotes = useMemo(() => notes?.slice(startIndex, endIndex) ?? [], [notes, startIndex, endIndex]);
+    const topSpacerHeight = startIndex * itemHeight;
+    const bottomSpacerHeight = Math.max(0, (totalCount - endIndex) * itemHeight);
+
     if (isLoading) {
         return (
             <div data-component="NoteListLoading" className="w-full md:w-84 border-b md:border-b-0 md:border-r border-apple-border h-full bg-white/80 dark:bg-black/20 overflow-hidden">
@@ -59,7 +73,7 @@ export function NoteList({ notes, isLoading, isError, selectedId, onSelect, sear
                 </div>
                 <div data-slot="header-actions" className="flex items-center gap-2">
                     <div data-slot="count" className="px-2 py-0.5 rounded-md bg-black/5 dark:bg-white/5 text-[11px] font-bold text-gray-500">
-                        {notes?.length || 0}
+                        {totalCount}
                     </div>
                     {hasSearchQuery && onClearSearch && (
                         <button
@@ -73,7 +87,12 @@ export function NoteList({ notes, isLoading, isError, selectedId, onSelect, sear
                 </div>
             </div>
 
-            <div data-slot="list-scroll" className="flex-1 overflow-y-auto overflow-x-hidden px-2 pt-2 pb-24 md:px-2 md:pb-12">
+            <div
+                ref={scrollRef}
+                data-slot="list-scroll"
+                className="flex-1 overflow-y-auto overflow-x-hidden px-2 pt-2 pb-24 md:px-2 md:pb-12"
+                onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
+            >
                 {showNoResults ? (
                     <div data-slot="empty-search" className="p-8 md:p-12 text-center space-y-3 opacity-40">
                         <div className="text-4xl">🔍</div>
@@ -89,7 +108,8 @@ export function NoteList({ notes, isLoading, isError, selectedId, onSelect, sear
                     </div>
                 ) : (
                     <div data-slot="list" className="space-y-1.5 md:space-y-0.5">
-                        {notes?.map((note) => (
+                        {topSpacerHeight > 0 && <div style={{ height: topSpacerHeight }} aria-hidden="true" />}
+                        {visibleNotes.map((note) => (
                             <NoteCard
                                 key={note.id}
                                 note={note}
@@ -101,6 +121,7 @@ export function NoteList({ notes, isLoading, isError, selectedId, onSelect, sear
                                 }}
                             />
                         ))}
+                        {bottomSpacerHeight > 0 && <div style={{ height: bottomSpacerHeight }} aria-hidden="true" />}
                     </div>
                 )}
             </div>

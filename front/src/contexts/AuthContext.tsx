@@ -12,26 +12,29 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-    const [token, setToken] = useState<string | null>(null);
-    const router = useRouter();
+    const [token, setToken] = useState<string | null>(() => {
+        if (typeof window === 'undefined') {
+            return null;
+        }
 
-    useEffect(() => {
-        // Try cookie first, then localStorage for backwards compatibility
         const cookieToken = document.cookie
             .split('; ')
             .find(row => row.startsWith('token='))
             ?.split('=')[1];
-        
-        const storedToken = cookieToken || localStorage.getItem('token');
-        
-        if (storedToken) {
-            setToken(storedToken);
-            // Ensure cookie is set for server actions
-            document.cookie = `token=${storedToken}; path=/; max-age=${7 * 24 * 60 * 60}`; // 7 days
-        } else {
+
+        return cookieToken || localStorage.getItem('token');
+    });
+    const router = useRouter();
+
+    useEffect(() => {
+        if (!token) {
             router.push('/login');
+            return;
         }
-    }, [router]);
+
+        // Ensure cookie is set for server actions
+        document.cookie = `token=${token}; path=/; max-age=${7 * 24 * 60 * 60}`; // 7 days
+    }, [router, token]);
 
     const login = (newToken: string) => {
         setToken(newToken);

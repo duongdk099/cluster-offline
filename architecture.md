@@ -1,6 +1,6 @@
 # NotesAides Architecture
 
-Last updated: 2026-03-15
+Last updated: 2026-04-09
 Scope: Architecture-only view (system structure, runtime flows, data model, and deployment topology).
 
 ## 1. System Context
@@ -8,7 +8,8 @@ Scope: Architecture-only view (system structure, runtime flows, data model, and 
 ```mermaid
 flowchart LR
     User[End User] --> Frontend[Next.js Frontend\nfront/]
-    Frontend -->|HTTPS REST| API[Bun + Hono API\napi/]
+    Frontend -->|local-first reads/writes| IndexedDB[(IndexedDB)]
+    Frontend -->|HTTPS REST sync| API[Bun + Hono API\napi/]
     Frontend -->|WSS /ws| API
     API -->|SQL| Postgres[(PostgreSQL)]
     Frontend -->|WASM calls| Wasm[Rust WASM Image Engine\nimage-wasm/]
@@ -27,9 +28,11 @@ flowchart TB
     Root --> K3s[k3s/]
 
     Front --> FrontApp[App Router pages]
-    Front --> FrontHooks[Hooks: useNotes/useSync/useNoteEditor]
-    Front --> FrontComponents[Editor + Sidebar + List components]
-    Front --> FrontActions[Server Actions: app/actions/notes.ts]
+    Front --> FrontHooks[Hooks: useNotes/useSync/useNoteEditor/useLocalFirstNote]
+    Front --> FrontComponents[Editor + Sidebar + Summary List components]
+    Front --> FrontLocal[IndexedDB: notes + note_summaries + mutations + sync_meta]
+    Front --> FrontServices[Notes service + local/remote repositories]
+    Front --> FrontActions[Server Actions still present, but no longer primary note CRUD path]
 
     Api --> ApiInterface[Interface: authRoutes + routes]
     Api --> ApiUseCases[Application: Create/Update/Delete/Login/...]
@@ -48,10 +51,11 @@ flowchart LR
     NextDev[Next.js Dev Server\nlocalhost:3000]
     ApiDev[Hono API\nlocalhost:3001]
     Db[Postgres Docker\nlocalhost:5433]
+    Idb[(IndexedDB)]
 
     Browser --> NextDev
-    Browser -->|optional direct API fetches from client hooks| ApiDev
-    NextDev -->|server actions fetch| ApiDev
+    Browser --> Idb
+    Browser -->|background sync + fallback fetches| ApiDev
     NextDev -->|WS from useSync| ApiDev
     ApiDev --> Db
     ApiDev --> UploadDisk[(api/uploads)]
@@ -75,13 +79,14 @@ sequenceDiagram
     AC-->>FE: Navigate to /
 ```
 
-## 5. Note Edit and Auto-Save Flow
+## 5. Local-First Note Edit and Auto-Save Flow
 
 ```mermaid
 sequenceDiagram
     participant U as User
     participant Editor as TipTap + useNoteEditor
-    participant FE as Frontend Wrapper
+    participant FE as Frontend Wrapper + notesService
+    participant IDB as IndexedDB
     participant API as /notes endpoints
     participant DB as PostgreSQL
 
@@ -90,23 +95,31 @@ sequenceDiagram
 
     alt New note
         Editor->>FE: onSave(new data)
-        FE->>API: POST /notes
+        FE->>IDB: create local note + enqueue create mutation
     else Existing note
         Editor->>FE: onSave(updated data)
-        FE->>API: PATCH /notes/:id
+        FE->>IDB: update local note + enqueue update mutation
     end
 
-    API->>DB: insert/update notes row
-    DB-->>API: success
-    API-->>FE: updated note payload
+    FE-->>Editor: local UI updates immediately
+
+    loop background sync
+        FE->>API: POST/PATCH/DELETE queued mutation
+        API->>DB: insert/update/delete notes row
+        DB-->>API: success
+        API-->>FE: authoritative note state
+        FE->>IDB: reconcile local record
+    end
 ```
 
-## 6. Real-Time Sync Flow
+## 6. Real-Time Sync and Local Reconciliation Flow
 
 ```mermaid
 sequenceDiagram
     participant FE1 as Client A
     participant FE2 as Client B
+    participant IDB1 as IndexedDB A
+    participant IDB2 as IndexedDB B
     participant API as Hono + Bun WS
     participant Bus as wsEvents emitter
 
@@ -120,8 +133,12 @@ sequenceDiagram
     API-->>FE1: WS event NOTE_UPDATED
     API-->>FE2: WS event NOTE_UPDATED
 
-    FE1->>FE1: invalidate React Query caches
-    FE2->>FE2: invalidate React Query caches
+    FE1->>API: fetch changed note if needed
+    FE2->>API: fetch changed note if needed
+    FE1->>IDB1: merge authoritative note
+    FE2->>IDB2: merge authoritative note
+    IDB1-->>FE1: local-first UI updates
+    IDB2-->>FE2: local-first UI updates
 ```
 
 ## 7. Image Processing and Upload Pipeline
@@ -165,6 +182,8 @@ erDiagram
         varchar user_id FK
         varchar title
         jsonb content
+        text content_text
+        timestamp updated_at
         timestamp created_at
         timestamp deleted_at
     }
@@ -223,14 +242,24 @@ flowchart LR
 ## 11. Architecture Decisions (Current)
 
 - Rich note content is persisted as JSONB, not HTML.
+- Frontend note UX is local-first; IndexedDB is the primary runtime read/write store for notes.
+- PostgreSQL remains the source of truth after sync.
+- IndexedDB separates full note bodies from lightweight note summaries to reduce client resource usage.
+- Note writes are persisted in a local outbox and flushed asynchronously.
+- Server fallback is still retained for cold start, missing local note detail, and reconciliation paths.
 - Soft-delete is first-class (`deleted_at`), with explicit restore/permanent-delete APIs.
 - Real-time sync is event-driven via websocket broadcasts scoped per user.
 - Image processing is done client-side through Rust WASM for responsiveness and server offload.
-- Frontend uses both server actions and client-side mutations; this works but creates a dual-write-path architecture.
+- React Query remains in use, but note content no longer treats it as the primary source of truth.
+- Server actions still exist, but note CRUD no longer depends on them as the primary interaction path.
 
 ## 12. Known Architecture Gaps
 
 - Planned AI/vector-search architecture in `Prototype.md` is not yet implemented.
+- Local search is summary-based and still scans in browser memory; it is improved over full-note scans but not yet a dedicated search index.
+- Local-first note sync does not yet implement revision-based conflict resolution.
+- The current note list windowing is simple fixed-height windowing rather than a more advanced virtualized layout system.
+- Tags/folders remain more API-first than note bodies and summaries.
 - Password reset token generation has no email delivery pipeline.
 - Auth token is JS-readable (cookie + localStorage), not HttpOnly-session based.
 - Frontend depends on generated `image-wasm/pkg`; clean environment setup requires WASM build step.
@@ -242,7 +271,10 @@ flowchart LR
 - Auth routes: `api/src/interface/authRoutes.ts`
 - DB schema: `api/src/infrastructure/db/schema.ts`
 - Front providers: `front/src/app/providers.tsx`
+- Local note DB: `front/src/lib/notes/localDb.ts`
+- Notes service: `front/src/lib/notes/notesService.ts`
 - Editor core: `front/src/hooks/useNoteEditor.ts`
+- Local-first detail hook: `front/src/hooks/useLocalFirstNote.ts`
 - Sync hook: `front/src/hooks/useSync.ts`
 - WASM exports: `image-wasm/src/lib.rs`
 - k3s ingress: `k3s/05-ingress.yaml`

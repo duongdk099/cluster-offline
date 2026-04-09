@@ -5,8 +5,7 @@ import { useState } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { NoteList } from '@/components/NoteList';
 import { MainEditor } from '@/components/MainEditor';
-import { deleteNote } from '@/app/actions/notes';
-import { useNotes, useUpdateNote } from '@/hooks/useNotes';
+import { useDeleteNote, useNotes, useUpdateNote } from '@/hooks/useNotes';
 import { useAuth } from '@/contexts/AuthContext';
 import type { JSONContent } from '@tiptap/core';
 import { ChevronDown, ChevronUp, Home, PlusIcon, LogOutIcon, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -29,6 +28,7 @@ export function EditorWrapper({ note }: EditorWrapperProps) {
   const { logout } = useAuth();
   const { data: notes, isLoading, isError } = useNotes();
   const updateNote = useUpdateNote();
+  const deleteNote = useDeleteNote();
   const [showListMobile, setShowListMobile] = useState(false);
   const [showLeftPanels, setShowLeftPanels] = useState(true);
 
@@ -37,11 +37,11 @@ export function EditorWrapper({ note }: EditorWrapperProps) {
   };
 
   const handleDelete = async () => {
-    const result = await deleteNote(note.id);
-    if (!result.success) {
-      console.error('Failed to delete note:', result.error);
-    } else {
+    try {
+      await deleteNote.mutateAsync(note.id);
       router.push('/');
+    } catch (error) {
+      console.error('Failed to delete note:', error);
     }
   };
 

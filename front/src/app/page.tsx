@@ -7,7 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Sidebar } from "@/components/Sidebar";
 import { NoteList } from "@/components/NoteList";
 import { useNotes, useSearchNotes } from "@/hooks/useNotes";
-import { stripHtml, extractFirstImage, formatRelativeTime } from "@/lib/utils";
+import { formatRelativeTime } from "@/lib/utils";
 import {
   PlusIcon,
   FileTextIcon,
@@ -20,15 +20,15 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { Note } from "@/lib/types";
+import { NoteSummary } from "@/lib/types";
 
 function NotesOverview({
   notes,
   onSelect,
   onNewNote,
 }: {
-  notes: Note[];
-  onSelect: (note: Note) => void;
+  notes: NoteSummary[];
+  onSelect: (note: NoteSummary) => void;
   onNewNote: () => void;
 }) {
   const now = new Date();
@@ -131,18 +131,16 @@ function NotesOverview({
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-4">
           {recentNotes.map((note) => {
-            const snippet = stripHtml(note.content);
-            const imageUrl = extractFirstImage(note.content);
             return (
               <button
                 key={note.id}
                 onClick={() => onSelect(note)}
                 className="group text-left bg-white/70 dark:bg-white/5 border border-apple-border rounded-2xl overflow-hidden hover:shadow-md hover:border-accent/30 active:scale-[0.98] transition-all duration-150"
               >
-                {imageUrl && (
+                {note.previewImage && (
                   <div
                     className="w-full h-28 bg-cover bg-center border-b border-apple-border/50"
-                    style={{ backgroundImage: `url(${imageUrl})` }}
+                    style={{ backgroundImage: `url(${note.previewImage})` }}
                   />
                 )}
                 <div className="p-4 space-y-1">
@@ -150,7 +148,7 @@ function NotesOverview({
                     {note.title || "Untitled Note"}
                   </h3>
                   <p className="text-[12px] text-gray-400 line-clamp-2 leading-relaxed">
-                    {snippet || "No additional text"}
+                    {note.snippet || "No additional text"}
                   </p>
                   <p className="text-[11px] text-gray-300 dark:text-gray-600 pt-1">
                     {formatRelativeTime(note.updatedAt ?? note.createdAt)}

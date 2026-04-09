@@ -56,10 +56,6 @@ export function MainEditor({ note, onSave, onDelete, isPending }: MainEditorProp
         tagInputRef.current?.focus();
     }, [isTagComposerOpen]);
 
-    useEffect(() => {
-        setIsTagComposerOpen(false);
-    }, [note?.id]);
-
     if (note === undefined) {
         return <EmptyState />;
     }

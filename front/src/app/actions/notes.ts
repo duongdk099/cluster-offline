@@ -4,20 +4,30 @@ import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import type { JSONContent } from '@tiptap/core';
+import type { Note } from '@/lib/types';
 
 const API_URL =
   process.env.API_INTERNAL_URL ||
   process.env.NEXT_PUBLIC_API_URL ||
   'http://localhost:3001';
 
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error && error.message ? error.message : fallback;
+}
+
+async function getResponseError(res: Response, fallback: string) {
+  const text = await res.text();
+  return text || fallback;
+}
+
 async function getAuthHeaders() {
   const cookieStore = await cookies();
   const token = cookieStore.get('token')?.value;
-  
+
   if (!token) {
     throw new Error('No auth token found');
   }
-  
+
   return {
     'Content-Type': 'application/json',
     Authorization: `Bearer ${token}`,
@@ -31,6 +41,10 @@ export interface NoteData {
   folderId?: string | null;
 }
 
+export type ActionResult<T> =
+  | { success: true; data: T }
+  | { success: false; error: string };
+
 export async function createNote(data: NoteData) {
   let noteId: string | null = null;
 
@@ -42,23 +56,27 @@ export async function createNote(data: NoteData) {
     });
 
     if (!res.ok) {
-      const error = await res.text();
-      return { error: error || 'Failed to create note' };
+      return {
+        success: false,
+        error: await getResponseError(res, 'Failed to create note'),
+      };
     }
 
     const note = await res.json();
     noteId = note.id;
     revalidatePath('/');
   } catch (error) {
-    return { error: error instanceof Error ? error.message : 'Failed to create note' };
+    return { success: false, error: getErrorMessage(error, 'Failed to create note') };
   }
 
   if (noteId) {
     redirect(`/notes/${noteId}`);
   }
+
+  return { success: false, error: 'Failed to create note' };
 }
 
-export async function updateNote(id: string, data: NoteData) {
+export async function updateNote(id: string, data: NoteData): Promise<ActionResult<Note>> {
   try {
     const res = await fetch(`${API_URL}/notes/${id}`, {
       method: 'PATCH',
@@ -67,20 +85,22 @@ export async function updateNote(id: string, data: NoteData) {
     });
 
     if (!res.ok) {
-      const error = await res.text();
-      return { error: error || 'Failed to update note' };
+      return {
+        success: false,
+        error: await getResponseError(res, 'Failed to update note'),
+      };
     }
 
     const note = await res.json();
     revalidatePath(`/notes/${id}`);
     revalidatePath('/');
-    return { success: true, note };
+    return { success: true, data: note };
   } catch (error) {
-    return { error: error instanceof Error ? error.message : 'Failed to update note' };
+    return { success: false, error: getErrorMessage(error, 'Failed to update note') };
   }
 }
 
-export async function deleteNote(id: string) {
+export async function deleteNote(id: string): Promise<ActionResult<{ id: string }>> {
   try {
     const res = await fetch(`${API_URL}/notes/${id}`, {
       method: 'DELETE',
@@ -88,19 +108,21 @@ export async function deleteNote(id: string) {
     });
 
     if (!res.ok) {
-      const error = await res.text();
-      return { error: error || 'Failed to delete note' };
+      return {
+        success: false,
+        error: await getResponseError(res, 'Failed to delete note'),
+      };
     }
 
     revalidatePath('/');
     revalidatePath('/notes/deleted');
-    return { success: true };
+    return { success: true, data: { id } };
   } catch (error) {
-    return { error: error instanceof Error ? error.message : 'Failed to delete note' };
+    return { success: false, error: getErrorMessage(error, 'Failed to delete note') };
   }
 }
 
-export async function restoreNote(id: string) {
+export async function restoreNote(id: string): Promise<ActionResult<{ id: string }>> {
   try {
     const res = await fetch(`${API_URL}/notes/${id}/restore`, {
       method: 'POST',
@@ -108,19 +130,21 @@ export async function restoreNote(id: string) {
     });
 
     if (!res.ok) {
-      const error = await res.text();
-      return { error: error || 'Failed to restore note' };
+      return {
+        success: false,
+        error: await getResponseError(res, 'Failed to restore note'),
+      };
     }
 
     revalidatePath('/');
     revalidatePath('/notes/deleted');
-    return { success: true };
+    return { success: true, data: { id } };
   } catch (error) {
-    return { error: error instanceof Error ? error.message : 'Failed to restore note' };
+    return { success: false, error: getErrorMessage(error, 'Failed to restore note') };
   }
 }
 
-export async function permanentDeleteNote(id: string) {
+export async function permanentDeleteNote(id: string): Promise<ActionResult<{ id: string }>> {
   try {
     const res = await fetch(`${API_URL}/notes/${id}/permanent`, {
       method: 'DELETE',
@@ -128,19 +152,24 @@ export async function permanentDeleteNote(id: string) {
     });
 
     if (!res.ok) {
-      const error = await res.text();
-      return { error: error || 'Failed to permanently delete note' };
+      return {
+        success: false,
+        error: await getResponseError(res, 'Failed to permanently delete note'),
+      };
     }
 
     revalidatePath('/');
     revalidatePath('/notes/deleted');
-    return { success: true };
+    return { success: true, data: { id } };
   } catch (error) {
-    return { error: error instanceof Error ? error.message : 'Failed to permanently delete note' };
+    return {
+      success: false,
+      error: getErrorMessage(error, 'Failed to permanently delete note'),
+    };
   }
 }
 
-export async function getNote(id: string) {
+export async function getNote(id: string): Promise<ActionResult<Note>> {
   try {
     const res = await fetch(`${API_URL}/notes/${id}`, {
       headers: await getAuthHeaders(),
@@ -148,16 +177,19 @@ export async function getNote(id: string) {
     });
 
     if (!res.ok) {
-      return null;
+      return {
+        success: false,
+        error: await getResponseError(res, 'Failed to fetch note'),
+      };
     }
 
-    return await res.json();
+    return { success: true, data: await res.json() };
   } catch (error) {
-    return null;
+    return { success: false, error: getErrorMessage(error, 'Failed to fetch note') };
   }
 }
 
-export async function getNotes() {
+export async function getNotes(): Promise<ActionResult<Note[]>> {
   try {
     const res = await fetch(`${API_URL}/notes`, {
       headers: await getAuthHeaders(),
@@ -165,16 +197,19 @@ export async function getNotes() {
     });
 
     if (!res.ok) {
-      return [];
+      return {
+        success: false,
+        error: await getResponseError(res, 'Failed to fetch notes'),
+      };
     }
 
-    return await res.json();
+    return { success: true, data: await res.json() };
   } catch (error) {
-    return [];
+    return { success: false, error: getErrorMessage(error, 'Failed to fetch notes') };
   }
 }
 
-export async function getDeletedNotes() {
+export async function getDeletedNotes(): Promise<ActionResult<Note[]>> {
   try {
     const res = await fetch(`${API_URL}/notes/deleted`, {
       headers: await getAuthHeaders(),
@@ -182,16 +217,19 @@ export async function getDeletedNotes() {
     });
 
     if (!res.ok) {
-      return [];
+      return {
+        success: false,
+        error: await getResponseError(res, 'Failed to fetch deleted notes'),
+      };
     }
 
-    return await res.json();
+    return { success: true, data: await res.json() };
   } catch (error) {
-    return [];
+    return { success: false, error: getErrorMessage(error, 'Failed to fetch deleted notes') };
   }
 }
 
-export async function searchNotes(query: string) {
+export async function searchNotes(query: string): Promise<ActionResult<Note[]>> {
   if (!query.trim()) {
     return getNotes();
   }
@@ -203,11 +241,14 @@ export async function searchNotes(query: string) {
     });
 
     if (!res.ok) {
-      return [];
+      return {
+        success: false,
+        error: await getResponseError(res, 'Failed to search notes'),
+      };
     }
 
-    return await res.json();
+    return { success: true, data: await res.json() };
   } catch (error) {
-    return [];
+    return { success: false, error: getErrorMessage(error, 'Failed to search notes') };
   }
 }

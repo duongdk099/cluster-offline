@@ -8,11 +8,12 @@ interface PageProps {
 
 export default async function NotePage({ params }: PageProps) {
   const { id } = await params;
-  const note = await getNote(id);
+  const result = await getNote(id);
 
-  if (!note) {
+  if (!result.success) {
     notFound();
   }
 
+  const note = result.data;
   return <EditorWrapper note={note} />;
 }

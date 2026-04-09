@@ -38,7 +38,7 @@ export function EditorWrapper({ note }: EditorWrapperProps) {
 
   const handleDelete = async () => {
     const result = await deleteNote(note.id);
-    if (result?.error) {
+    if (!result.success) {
       console.error('Failed to delete note:', result.error);
     } else {
       router.push('/');

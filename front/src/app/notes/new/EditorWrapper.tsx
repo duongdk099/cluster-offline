@@ -22,7 +22,7 @@ export function EditorWrapper() {
   const handleSave = (data: { title: string; content: JSONContent; tags?: string[]; folderId?: string | null }) => {
     startTransition(async () => {
       const result = await createNote(data);
-      if (result?.error) {
+      if (result && !result.success) {
         console.error('Failed to create note:', result.error);
       }
       // Redirect happens in server action on success

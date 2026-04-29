@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { Note, INoteRepository, NoteTag, NoteFolder } from '../domain/Note';
+import { Note, INoteRepository, NoteTag, NoteFolder, JsonValue } from '../domain/Note';
 import { db } from './db';
 import { notes, tags, noteTags, folders } from './db/schema';
 import { eq, and, sql, isNull, inArray, desc, or } from 'drizzle-orm';
@@ -66,7 +66,7 @@ export class DrizzleNoteRepository implements INoteRepository {
             id: row.id,
             userId: row.userId,
             title: row.title,
-            content: row.content,
+            content: row.content as JsonValue,
             contentText: row.contentText,
             createdAt: row.createdAt,
             updatedAt: row.updatedAt,

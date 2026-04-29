@@ -4,6 +4,7 @@ import { CreateNoteUseCase } from '../application/CreateNote';
 import { GetNoteUseCase } from '../application/GetNote';
 import { UpdateNoteUseCase } from '../application/UpdateNote';
 import { DeleteNoteUseCase } from '../application/DeleteNote';
+import { ExportFormat, ExportNoteUseCase } from '../application/ExportNote';
 import { DrizzleNoteRepository } from '../infrastructure/DrizzleNoteRepository';
 import { notifyChange } from '../infrastructure/websocket';
 
@@ -44,6 +45,7 @@ const createNoteUseCase = new CreateNoteUseCase(noteRepository);
 const getNoteUseCase = new GetNoteUseCase(noteRepository);
 const updateNoteUseCase = new UpdateNoteUseCase(noteRepository);
 const deleteNoteUseCase = new DeleteNoteUseCase(noteRepository);
+const exportNoteUseCase = new ExportNoteUseCase(noteRepository);
 
 // Search notes
 noteRoutes.get('/search', async (c) => {
@@ -158,6 +160,34 @@ noteRoutes.get('/', async (c) => {
     }
 
     return c.json(notes);
+});
+
+noteRoutes.get('/:id/export/:format', async (c) => {
+    const payload = c.get('jwtPayload') as { sub: string };
+    const id = c.req.param('id');
+    const format = c.req.param('format') as ExportFormat;
+    const supportedFormats = new Set<ExportFormat>(['md', 'markdown', 'pdf', 'docx']);
+
+    if (!supportedFormats.has(format)) {
+        return c.json({ error: 'Unsupported export format' }, 400);
+    }
+
+    const exported = await exportNoteUseCase.execute(id, payload.sub, format);
+    if (!exported) {
+        return c.json({ error: 'Note not found' }, 404);
+    }
+
+    const body: BodyInit = typeof exported.body === 'string'
+        ? exported.body
+        : new Uint8Array(exported.body);
+
+    return new Response(body, {
+        headers: {
+            'Content-Type': exported.contentType,
+            'Content-Disposition': `attachment; filename="${exported.filename}"`,
+            'Cache-Control': 'no-store',
+        },
+    });
 });
 
 noteRoutes.get('/:id', async (c) => {

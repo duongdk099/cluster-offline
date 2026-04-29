@@ -1,6 +1,6 @@
 # NotesAides Technical Documentation
 
-Last updated: 2026-04-07
+Last updated: 2026-04-29
 Repository root: `Cluster/`
 
 ## 1. Project Reality Check
@@ -12,7 +12,7 @@ Repository root: `Cluster/`
 - Local Docker orchestration (`docker-compose.yml`)
 - Kubernetes manifests for k3s deployment (`k3s/`)
 
-The implementation currently focuses on authenticated note CRUD, soft-delete/trash, tags/folders organization, real-time sync notifications, and rich-text editing with image optimization/crop/rotate.
+The implementation currently focuses on authenticated note CRUD, soft-delete/trash, tags/folders organization, real-time sync notifications, rich-text editing with image optimization/crop/rotate, and API-side note import/export.
 
 The `Prototype.md` describes a broader AI/vector-search vision. Most AI-specific features (LLM routing, semantic graph, vector DB, OCR cloud routing) are not yet implemented in the current codebase.
 
@@ -53,6 +53,7 @@ flowchart LR
     UI --> WASM[image-wasm package\nRust compiled to WASM]
     WASM --> UI
     API --> FS[(uploads/ static files)]
+    API --> FILES[Import/Export converters\nMD/TXT/DOCX/PDF]
     API --> TAGS[(tags / folders / note_tags)]
 ```
 
@@ -64,6 +65,8 @@ Key runtime properties:
 - WebSocket broadcast events trigger frontend cache invalidation
 - Editor stores rich content as TipTap JSON in PostgreSQL JSONB
 - Search uses `title`, extracted `content_text`, and JSON text fallback
+- Import converts uploaded Markdown, text, and DOCX files into normal note records
+- Export generates Markdown, PDF, and DOCX files on demand without storing generated files
 
 ## 4. Backend (`api/`) Deep Dive
 
@@ -74,6 +77,7 @@ Key runtime properties:
 - DB client: `postgres` + Drizzle
 - JWT: `hono/jwt`
 - Password hashing: `Bun.password.hash/verify`
+- Import/export helpers: `mammoth`, `docx`, `pdfkit`
 
 `api/package.json` scripts:
 - `dev`: `bun run --watch src/index.ts`
@@ -87,6 +91,7 @@ Key runtime properties:
 The backend uses a clean-ish layer split:
 - `domain/`: interfaces and entities (`Note`, `User`, repository contracts)
 - `application/`: use-cases (`CreateNote`, `UpdateNote`, auth, reset flows)
+- `application/import/` and `application/export/`: file conversion helpers for note import/export
 - `infrastructure/`: Drizzle repositories, DB config, websocket event bus
 - `interface/`: HTTP routes (`routes.ts`, `authRoutes.ts`)
 - `index.ts`: app composition + server bootstrap
@@ -139,6 +144,15 @@ All `/notes/*` routes require JWT middleware.
 - Creates note with generated UUID, extracted `contentText`, optional `tags`, and optional `folderId`
 - Emits websocket event `NOTE_CREATED`
 
+`POST /notes/import`
+- Multipart import endpoint for `.md`, `.markdown`, `.txt`, and `.docx`
+- Required form field: `file`
+- Optional form fields: `tags` as comma-separated text, `folderId`
+- Max import size: 5 MB
+- Converts uploaded content into TipTap JSON and creates a normal note via `CreateNoteUseCase`
+- Emits websocket event `NOTE_CREATED`
+- DOCX import currently extracts raw text with `mammoth`; rich Word styling is not preserved
+
 `PATCH /notes/:id` and `PUT /notes/:id`
 - Updates title/content and may also replace tags / assign folder
 - Includes retry loop (up to 5 attempts with backoff) to handle race timing after create
@@ -164,6 +178,15 @@ All `/notes/*` routes require JWT middleware.
 - If empty query: returns all non-deleted notes
 - Supports optional `tag` and `folder` filters
 - Otherwise text search against `title`, `content_text`, and `content::text` using `ILIKE`
+
+`GET /notes/:id/export/:format`
+- Exports an owned, non-deleted note
+- Supported formats: `md`, `markdown`, `pdf`, `docx`
+- Returns a downloadable response with `Content-Disposition: attachment`
+- Generated exports are temporary in-memory responses; no export files are persisted by the API
+- Markdown export preserves common TipTap structure such as headings, lists, task lists, code blocks, blockquotes, images, tables, and basic inline marks
+- PDF export is generated from readable plain text using `pdfkit`
+- DOCX export is generated from parsed note content using `docx`
 
 Additional note-organization routes:
 
@@ -573,6 +596,31 @@ Message body:
 - `type`: e.g. `NOTE_CREATED`, `NOTE_UPDATED`, `NOTE_DELETED`, `NOTE_RESTORED`, `NOTE_PERMANENTLY_DELETED`
 - `noteId?: string`
 
+## 10.4 Import request contract
+
+`POST /notes/import` expects multipart form data:
+- `file`: required file upload (`.md`, `.markdown`, `.txt`, `.docx`)
+- `tags`: optional comma-separated tag names
+- `folderId`: optional folder ID owned by the current user
+
+Successful response:
+- Returns the created `Note` object
+- The imported note is indistinguishable from a manually created note after creation
+
+## 10.5 Export response contract
+
+`GET /notes/:id/export/:format` returns a file response:
+- `format`: `md`, `markdown`, `pdf`, or `docx`
+- `Content-Type`: format-specific MIME type
+- `Content-Disposition`: attachment filename derived from the note title
+- Body: generated file bytes or Markdown text
+
+Export generation is stateless:
+- The API reads the current note from PostgreSQL
+- Converts content in memory
+- Sends the file response
+- Does not write the generated file to disk or database
+
 ## 11. Current Technical Risks and Gaps
 
 1. AI/vector-search roadmap not implemented yet.
@@ -616,6 +664,11 @@ Message body:
 - `forget-password` stores generated token but does not log or return it (comment still mentions console behavior).
 - Login page calls `login()` (which already redirects) and also directly pushes to `/`.
 
+14. Import/export fidelity is intentionally basic.
+- Markdown import/export handles common editor structures, but it is not a full CommonMark implementation.
+- DOCX import extracts raw text only; DOCX export recreates common note structure but does not guarantee pixel-perfect Word formatting.
+- PDF export is generated from plain readable text, not from the exact editor visual layout.
+
 ## 12. Operational Sequences
 
 ## 12.1 Note create/edit sequence
@@ -636,7 +689,56 @@ Message body:
 5. TipTap inserts image node with URL.
 6. Subsequent editor autosave persists updated TipTap JSON content.
 
-## 12.3 Cache invalidation sequence
+## 12.3 Import sequence
+
+1. User uploads `.md`, `.markdown`, `.txt`, or `.docx` to `POST /notes/import`.
+2. API validates JWT, file extension/MIME, and file size.
+3. Import use case converts file bytes into TipTap JSON.
+4. API creates a normal note through `CreateNoteUseCase`.
+5. API emits `NOTE_CREATED`.
+6. Frontend websocket sync invalidates note caches.
+
+```mermaid
+sequenceDiagram
+    participant UI as Frontend
+    participant API as Hono API
+    participant Import as ImportNoteUseCase
+    participant Create as CreateNoteUseCase
+    participant DB as PostgreSQL
+    participant WS as WebSocket
+
+    UI->>API: POST /notes/import multipart file
+    API->>Import: convert file to TipTap JSON
+    Import->>Create: execute(userId, title, content, tags, folderId)
+    Create->>DB: insert note + metadata
+    API->>WS: publish NOTE_CREATED
+    API-->>UI: created note JSON
+```
+
+## 12.4 Export sequence
+
+1. User requests `GET /notes/:id/export/:format`.
+2. API validates JWT and note ownership.
+3. Export use case loads the note from PostgreSQL.
+4. Converter generates Markdown/PDF/DOCX in memory.
+5. API returns an attachment response.
+6. No generated export artifact is stored server-side.
+
+```mermaid
+sequenceDiagram
+    participant UI as Frontend
+    participant API as Hono API
+    participant Export as ExportNoteUseCase
+    participant DB as PostgreSQL
+
+    UI->>API: GET /notes/:id/export/pdf
+    API->>Export: execute(id, userId, format)
+    Export->>DB: find note by owner
+    Export->>Export: generate file in memory
+    API-->>UI: attachment response
+```
+
+## 12.5 Cache invalidation sequence
 
 ```mermaid
 sequenceDiagram
@@ -805,12 +907,13 @@ kubectl apply -f k3s/
 
 ## 17. Recommended Next Engineering Steps
 
-1. Implement proper email delivery for reset-password tokens.
-2. Consolidate note writes through one strategy (server actions or client mutations) to reduce complexity.
-3. Move auth to HttpOnly cookie session/JWT refresh pattern.
-4. Add automated tests for auth, note lifecycle, and websocket sync.
-5. Add DB indexes/full-text strategy and then vector layer when semantic search is introduced.
-6. Add CI pipeline to build Rust WASM package and ensure `front` can install from generated artifacts.
+1. Add frontend controls/hooks for note import and export.
+2. Implement proper email delivery for reset-password tokens.
+3. Consolidate note writes through one strategy (server actions or client mutations) to reduce complexity.
+4. Move auth to HttpOnly cookie session/JWT refresh pattern.
+5. Add automated tests for auth, note lifecycle, import/export, and websocket sync.
+6. Add DB indexes/full-text strategy and then vector layer when semantic search is introduced.
+7. Add CI pipeline to build Rust WASM package and ensure `front` can install from generated artifacts.
 
 ## 18. File Responsibilities Index
 
@@ -830,6 +933,10 @@ This index maps the most important files to their runtime role.
 - `src/interface/routes.ts`: authenticated note route handlers.
 - `src/interface/authRoutes.ts`: register/login/forgot/reset auth handlers.
 - `src/application/CreateNote.ts`: note creation use-case.
+- `src/application/ImportNote.ts`: imports supported file uploads into normal note records.
+- `src/application/ExportNote.ts`: exports notes as generated Markdown/PDF/DOCX attachment responses.
+- `src/application/import/*`: Markdown/text/DOCX-to-TipTap conversion helpers.
+- `src/application/export/*`: TipTap-to-Markdown/plain-text/PDF/DOCX conversion helpers.
 - `src/application/GetNote.ts`: read note use-case.
 - `src/application/UpdateNote.ts`: note update use-case with retry loop.
 - `src/application/DeleteNote.ts`: soft delete, restore, permanent delete use-cases.

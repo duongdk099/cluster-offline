@@ -5,6 +5,7 @@ import { GetNoteUseCase } from '../application/GetNote';
 import { UpdateNoteUseCase } from '../application/UpdateNote';
 import { DeleteNoteUseCase } from '../application/DeleteNote';
 import { ExportFormat, ExportNoteUseCase } from '../application/ExportNote';
+import { ImportNoteUseCase } from '../application/ImportNote';
 import { DrizzleNoteRepository } from '../infrastructure/DrizzleNoteRepository';
 import { notifyChange } from '../infrastructure/websocket';
 
@@ -12,6 +13,16 @@ const noteRoutes = new Hono();
 const MAX_TAGS_PER_NOTE = 20;
 const MAX_TAG_LENGTH = 100;
 const MAX_FOLDER_LENGTH = 100;
+const MAX_IMPORT_FILE_SIZE = 5 * 1024 * 1024;
+const IMPORTABLE_MIME_TYPES = new Set([
+    'text/markdown',
+    'text/x-markdown',
+    'text/plain',
+    'application/octet-stream',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    '',
+]);
+const IMPORTABLE_EXTENSIONS = new Set(['md', 'markdown', 'txt', 'docx']);
 
 function sanitizeTagNames(input: unknown): string[] | null | undefined {
     if (input === undefined) {
@@ -34,6 +45,28 @@ function sanitizeTagNames(input: unknown): string[] | null | undefined {
     return normalized;
 }
 
+function parseImportTags(input: unknown): string[] | null | undefined {
+    if (input === undefined) {
+        return undefined;
+    }
+
+    if (typeof input !== 'string') {
+        return null;
+    }
+
+    const parsed = input
+        .split(',')
+        .map((tag) => tag.trim())
+        .filter(Boolean);
+
+    return sanitizeTagNames(parsed);
+}
+
+function isImportableFile(file: File): boolean {
+    const extension = file.name.split('.').pop()?.toLowerCase() ?? '';
+    return IMPORTABLE_EXTENSIONS.has(extension) && IMPORTABLE_MIME_TYPES.has(file.type);
+}
+
 const jwtSecret = process.env.JWT_SECRET;
 if (!jwtSecret) {
     throw new Error('JWT_SECRET environment variable is required');
@@ -46,6 +79,7 @@ const getNoteUseCase = new GetNoteUseCase(noteRepository);
 const updateNoteUseCase = new UpdateNoteUseCase(noteRepository);
 const deleteNoteUseCase = new DeleteNoteUseCase(noteRepository);
 const exportNoteUseCase = new ExportNoteUseCase(noteRepository);
+const importNoteUseCase = new ImportNoteUseCase(createNoteUseCase);
 
 // Search notes
 noteRoutes.get('/search', async (c) => {
@@ -144,6 +178,54 @@ noteRoutes.post('/', async (c) => {
     notifyChange(payload.sub, 'NOTE_CREATED', note.id);
 
     return c.json(note, 201);
+});
+
+noteRoutes.post('/import', async (c) => {
+    const payload = c.get('jwtPayload') as { sub: string };
+    const body = await c.req.parseBody();
+    const file = body.file;
+    const tags = parseImportTags(body.tags);
+    const folderId = body.folderId === undefined || body.folderId === null || body.folderId === ''
+        ? null
+        : (typeof body.folderId === 'string' ? body.folderId : undefined);
+
+    if (!(file instanceof File)) {
+        return c.json({ error: 'File is required' }, 400);
+    }
+
+    if (tags === null) {
+        return c.json({ error: 'Invalid tags format' }, 400);
+    }
+
+    if (folderId === undefined) {
+        return c.json({ error: 'Invalid folderId format' }, 400);
+    }
+
+    if (file.size > MAX_IMPORT_FILE_SIZE) {
+        return c.json({ error: 'File too large. Maximum size: 5MB' }, 400);
+    }
+
+    if (!isImportableFile(file)) {
+        return c.json({ error: 'Unsupported import format. Use .md, .markdown, .txt, or .docx' }, 400);
+    }
+
+    try {
+        const note = await importNoteUseCase.execute({
+            userId: payload.sub,
+            file: {
+                name: file.name,
+                type: file.type,
+                bytes: await file.arrayBuffer(),
+            },
+            tags,
+            folderId,
+        });
+
+        notifyChange(payload.sub, 'NOTE_CREATED', note.id);
+        return c.json(note, 201);
+    } catch {
+        return c.json({ error: 'Failed to import note' }, 400);
+    }
 });
 
 noteRoutes.get('/', async (c) => {

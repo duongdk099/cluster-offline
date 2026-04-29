@@ -1,6 +1,6 @@
 # NotesAides Architecture
 
-Last updated: 2026-03-15
+Last updated: 2026-04-29
 Scope: Architecture-only view (system structure, runtime flows, data model, and deployment topology).
 
 ## 1. System Context
@@ -13,6 +13,7 @@ flowchart LR
     API -->|SQL| Postgres[(PostgreSQL)]
     Frontend -->|WASM calls| Wasm[Rust WASM Image Engine\nimage-wasm/]
     API -->|Static files| Uploads[(uploads/)]
+    API -->|on-demand file conversion| FileIO[Import/Export\nMD/TXT/DOCX/PDF]
 ```
 
 ## 2. Monorepo Architecture
@@ -33,6 +34,7 @@ flowchart TB
 
     Api --> ApiInterface[Interface: authRoutes + routes]
     Api --> ApiUseCases[Application: Create/Update/Delete/Login/...]
+    Api --> ApiFileUseCases[Application: ImportNote/ExportNote\nimport/* + export/* converters]
     Api --> ApiDomain[Domain: Note/User contracts]
     Api --> ApiInfra[Infrastructure: Drizzle repos + websocket + db]
 
@@ -55,6 +57,7 @@ flowchart LR
     NextDev -->|WS from useSync| ApiDev
     ApiDev --> Db
     ApiDev --> UploadDisk[(api/uploads)]
+    ApiDev --> FileConverters[In-memory import/export converters]
 ```
 
 ## 4. Authentication and Session Flow
@@ -145,11 +148,57 @@ sequenceDiagram
     Editor->>Editor: insert image node in TipTap content
 ```
 
-## 8. Data Model (Logical)
+## 8. Note Import Flow
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant FE as Frontend
+    participant API as POST /notes/import
+    participant Import as ImportNoteUseCase
+    participant Create as CreateNoteUseCase
+    participant DB as PostgreSQL
+    participant WS as WebSocket bus
+
+    U->>FE: Select .md/.txt/.docx file
+    FE->>API: multipart file + optional tags/folderId
+    API->>Import: validate and convert bytes to TipTap JSON
+    Import->>Create: create normal note
+    Create->>DB: insert note row and metadata
+    API->>WS: NOTE_CREATED
+    API-->>FE: created note payload
+```
+
+Import is not a separate persistence model. Imported files are converted into normal notes and then stored in the existing `notes` table.
+
+## 9. Note Export Flow
+
+```mermaid
+sequenceDiagram
+    participant FE as Frontend
+    participant API as GET /notes/:id/export/:format
+    participant Export as ExportNoteUseCase
+    participant DB as PostgreSQL
+
+    FE->>API: Request md/pdf/docx export
+    API->>Export: verify ownership and format
+    Export->>DB: load current note
+    Export->>Export: generate file in memory
+    API-->>FE: attachment response
+```
+
+Exports are generated on demand. The API does not store generated Markdown/PDF/DOCX files in PostgreSQL or `uploads/`.
+
+## 10. Data Model (Logical)
 
 ```mermaid
 erDiagram
     USERS ||--o{ NOTES : owns
+    USERS ||--o{ TAGS : owns
+    USERS ||--o{ FOLDERS : owns
+    NOTES ||--o{ NOTE_TAGS : has
+    TAGS ||--o{ NOTE_TAGS : labels
+    FOLDERS ||--o{ NOTES : groups
 
     USERS {
         varchar id PK
@@ -163,14 +212,36 @@ erDiagram
     NOTES {
         varchar id PK
         varchar user_id FK
+        varchar folder_id FK
         varchar title
         jsonb content
+        text content_text
         timestamp created_at
+        timestamp updated_at
         timestamp deleted_at
+    }
+
+    FOLDERS {
+        varchar id PK
+        varchar user_id FK
+        varchar name
+        varchar normalized_name
+    }
+
+    TAGS {
+        varchar id PK
+        varchar user_id FK
+        varchar name
+        varchar normalized_name
+    }
+
+    NOTE_TAGS {
+        varchar note_id PK,FK
+        varchar tag_id PK,FK
     }
 ```
 
-## 9. Deployment Topology (k3s)
+## 11. Deployment Topology (k3s)
 
 ```mermaid
 flowchart TB
@@ -201,7 +272,7 @@ flowchart TB
     Cert --> Ingress
 ```
 
-## 10. Container Build Architecture
+## 12. Container Build Architecture
 
 ```mermaid
 flowchart LR
@@ -220,27 +291,32 @@ flowchart LR
     end
 ```
 
-## 11. Architecture Decisions (Current)
+## 13. Architecture Decisions (Current)
 
 - Rich note content is persisted as JSONB, not HTML.
 - Soft-delete is first-class (`deleted_at`), with explicit restore/permanent-delete APIs.
 - Real-time sync is event-driven via websocket broadcasts scoped per user.
 - Image processing is done client-side through Rust WASM for responsiveness and server offload.
+- Import creates normal note records from uploaded Markdown, text, and DOCX files.
+- Export is stateless and generated in memory for Markdown, PDF, and DOCX responses.
 - Frontend uses both server actions and client-side mutations; this works but creates a dual-write-path architecture.
 
-## 12. Known Architecture Gaps
+## 14. Known Architecture Gaps
 
 - Planned AI/vector-search architecture in `Prototype.md` is not yet implemented.
 - Password reset token generation has no email delivery pipeline.
 - Auth token is JS-readable (cookie + localStorage), not HttpOnly-session based.
 - Frontend depends on generated `image-wasm/pkg`; clean environment setup requires WASM build step.
+- Import/export fidelity is practical rather than perfect: DOCX import extracts raw text, PDF export uses readable text layout, and Markdown conversion covers common editor structures.
 
-## 13. Quick Navigation
+## 15. Quick Navigation
 
 - System entrypoint: `api/src/index.ts`
 - Note routes: `api/src/interface/routes.ts`
 - Auth routes: `api/src/interface/authRoutes.ts`
 - DB schema: `api/src/infrastructure/db/schema.ts`
+- Import use case: `api/src/application/ImportNote.ts`
+- Export use case: `api/src/application/ExportNote.ts`
 - Front providers: `front/src/app/providers.tsx`
 - Editor core: `front/src/hooks/useNoteEditor.ts`
 - Sync hook: `front/src/hooks/useSync.ts`

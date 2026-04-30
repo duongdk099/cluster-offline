@@ -1,0 +1,305 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+@config "../../tailwind.config.ts";
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+}
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 4%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 4%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 4%;
+    --primary: 263 70% 50%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 5% 96%;
+    --secondary-foreground: 240 6% 10%;
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 4% 46%;
+    --accent: 240 5% 96%;
+    --accent-foreground: 240 6% 10%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 6% 90%;
+    --input: 240 6% 90%;
+    --ring: 263 70% 50%;
+    --radius: 0.5rem;
+    --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  }
+
+  .dark {
+    --background: 240 10% 4%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 6%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 6%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 263 70% 60%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 4% 12%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 4% 12%;
+    --muted-foreground: 240 5% 65%;
+    --accent: 240 4% 12%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 4% 16%;
+    --input: 240 4% 16%;
+    --ring: 263 70% 60%;
+  }
+
+  * {
+    border-color: hsl(var(--border));
+  }
+
+  html {
+    background: hsl(var(--background));
+    /* Smooth dark/light theme transitions on the chrome layer. */
+    transition:
+      background-color 250ms ease,
+      color 250ms ease;
+  }
+
+  body {
+    min-height: 100vh;
+    min-height: 100dvh;
+    background: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: var(--font-sans);
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    letter-spacing: 0;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    transition:
+      background-color 250ms ease,
+      color 250ms ease;
+  }
+
+  /*
+   * Animate the most common surfaces during a theme switch.
+   * We scope the transition to known token-driven properties only,
+   * so we don't tax unrelated transitions (e.g. hover, active scale).
+   */
+  *, *::before, *::after {
+    transition-property:
+      background-color,
+      border-color,
+      color,
+      fill,
+      stroke,
+      box-shadow;
+    transition-timing-function: ease;
+    transition-duration: 200ms;
+  }
+
+  /*
+   * Theme-swap synchronization.
+   * When the user toggles dark/light, ThemeToggle adds .theme-switching
+   * on <html> for ~2 frames. This rule kills every transition (ours,
+   * Tailwind's `transition-colors`, shadcn primitives, animations) so
+   * the entire UI swaps tokens atomically instead of producing a
+   * desynchronized "wave" of color changes.
+   */
+  .theme-switching,
+  .theme-switching *,
+  .theme-switching *::before,
+  .theme-switching *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+
+  /*
+   * View Transitions API crossfade (Chromium / recent Safari).
+   * We render the theme swap as a single 250ms crossfade between the
+   * old snapshot and the new one. Far smoother than per-element tweens.
+   * Browsers without support fall back to the atomic swap above.
+   */
+  @supports (view-transition-name: root) {
+    ::view-transition-old(root),
+    ::view-transition-new(root) {
+      animation-duration: 260ms;
+      animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+      mix-blend-mode: normal;
+    }
+
+    /* Disable the fade on the root so it is fully controlled by the
+       browser's view-transition pseudo-elements. */
+    ::view-transition-group(root) {
+      animation-duration: 260ms;
+    }
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+
+  code,
+  pre,
+  kbd,
+  [data-mono],
+  .font-mono {
+    font-family: var(--font-mono);
+  }
+}
+
+@layer components {
+  .prose {
+    color: hsl(var(--foreground));
+  }
+
+  .prose :where(h1, h2, h3, h4, strong) {
+    color: hsl(var(--foreground));
+  }
+
+  .prose :where(p, li, blockquote) {
+    color: hsl(var(--foreground) / 0.9);
+  }
+
+  .prose blockquote {
+    border-left-color: hsl(var(--primary));
+  }
+
+  .prose a {
+    color: hsl(var(--primary));
+  }
+
+  .prose table {
+    width: 100%;
+    border-collapse: collapse;
+    overflow: hidden;
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+  }
+
+  .prose th,
+  .prose td {
+    border: 1px solid hsl(var(--border));
+    padding: 0.75rem;
+    vertical-align: top;
+  }
+
+  .prose th {
+    background: hsl(var(--muted));
+    color: hsl(var(--muted-foreground));
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  ul[data-type="taskList"] {
+    list-style: none;
+    margin: 1rem 0;
+    padding: 0;
+  }
+
+  ul[data-type="taskList"] li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+
+  ul[data-type="taskList"] input[type="checkbox"] {
+    margin-top: 0.3rem;
+    width: 1rem;
+    height: 1rem;
+    accent-color: hsl(var(--primary));
+  }
+}
+
+@layer utilities {
+  /* ---- Page transitions (route → route) ---- */
+  .page-enter-active,
+  .page-leave-active {
+    transition:
+      opacity 180ms ease,
+      transform 180ms ease;
+    will-change: opacity, transform;
+  }
+
+  .page-enter-from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  .page-leave-to {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  /* ---- Drag-and-drop affordances ---- */
+  /* Whole-page hint when a note is being dragged: dim non-droppable surfaces. */
+  body.is-dragging-note {
+    cursor: grabbing;
+  }
+
+  /* Folder wiggle when hovered as a drop target. */
+  @keyframes wiggle {
+    0%, 100% { transform: rotate(0deg); }
+    25%      { transform: rotate(-5deg); }
+    75%      { transform: rotate(5deg); }
+  }
+
+  /* Soft "pulse" outline used by the active drop target for extra emphasis. */
+  @keyframes drop-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 hsl(var(--primary) / 0.45); }
+    50%      { box-shadow: 0 0 0 4px hsl(var(--primary) / 0.0); }
+  }
+
+  [data-drop-target="true"] {
+    animation: drop-pulse 1s ease-in-out infinite;
+  }
+
+  /* ---- Scrollbar ---- */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 7px;
+    height: 7px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 999px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.6);
+  }
+}

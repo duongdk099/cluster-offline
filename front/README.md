@@ -1,36 +1,32 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# NotesAides Frontend
 
-## Getting Started
+Nuxt 3 frontend for the NotesAides app. It uses Vue 3, Pinia, TanStack Vue Query, TipTap Vue 3, Tailwind CSS 4, and the local `image-wasm` package for browser-side image transforms.
 
-First, run the development server:
+## Commands
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
+pnpm run dev
+pnpm run build
+pnpm run preview
+pnpm run lint
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The dev server runs on [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Create `front/.env.local` from `.env.example` and set:
 
-## Learn More
+```bash
+NUXT_PUBLIC_API_URL=http://localhost:3001
+NUXT_PUBLIC_WS_URL=ws://localhost:3001/ws
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Structure
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `pages/` contains the Nuxt routes.
+- `components/` contains the sidebar, note list, editor, and TipTap node views.
+- `composables/` contains Vue Query hooks, WebSocket sync, and editor state.
+- `stores/auth.ts` stores the auth token in Pinia, localStorage, and a cookie.
+- `services/notesService.ts` contains direct REST calls to the existing API contract.

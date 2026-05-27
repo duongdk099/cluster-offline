@@ -156,17 +156,26 @@ app.post('/upload', jwt({ secret: jwtSecret, alg: 'HS256' }), async (c) => {
     }
 })
 
-// Start the Bun server (Bun --watch will naturally handle restarts)
-const server = Bun.serve({
-    port: Number(process.env.PORT) || 3001,
-    fetch: app.fetch,
-    websocket,
-})
+// Start the Bun server only when this file is run directly as the entrypoint.
+// Importing the app (e.g. from tests) must not bind a port.
+if (import.meta.main) {
+    // Bun --watch will naturally handle restarts
+    const server = Bun.serve({
+        port: Number(process.env.PORT) || 3001,
+        fetch: app.fetch,
+        websocket,
+    })
 
-// Clear old event listeners to prevent memory leaks during hot-reload
-wsEvents.removeAllListeners('broadcast');
+    // Clear old event listeners to prevent memory leaks during hot-reload
+    wsEvents.removeAllListeners('broadcast');
 
-// Listen for notifications from routes and broadcast to subscribers
-wsEvents.on('broadcast', ({ userId, type, noteId }) => {
-    server.publish(`user_${userId}`, JSON.stringify({ type, noteId }));
-});
+    // Listen for notifications from routes and broadcast to subscribers
+    wsEvents.on('broadcast', ({ userId, type, noteId }) => {
+        server.publish(`user_${userId}`, JSON.stringify({ type, noteId }));
+    });
+}
+
+// Named (not default) export: a default export that looks like a server
+// config makes Bun auto-serve it, which would double-bind the port alongside
+// the explicit Bun.serve above. Tests import { app } and call app.request().
+export { app }

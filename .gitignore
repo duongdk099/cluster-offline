@@ -13,3 +13,6 @@ node_modules/
 
 # Workspaces
 *.log
+
+# Local-only ticket screenshots
+screens/

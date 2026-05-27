@@ -32,17 +32,23 @@ services:
     build:
       context: .
       dockerfile: ./front/Dockerfile
+      target: builder
     ports:
       - "3000:3000"
     env_file:
       - ./front/.env.local
     environment:
       - NODE_ENV=development
+      - NUXT_PUBLIC_API_URL=http://localhost:3001
+      - NUXT_PUBLIC_WS_URL=ws://localhost:3001/ws
+    working_dir: /usr/src/app/front
     volumes:
-      - ./front:/usr/src/app
+      - ./front:/usr/src/app/front
       - /usr/src/app/node_modules
-      - /usr/src/app/.next
-    command: pnpm run dev
+      - /usr/src/app/front/node_modules
+      - /usr/src/app/front/.nuxt
+      - /usr/src/app/front/.output
+    command: pnpm run dev --host 0.0.0.0
 
 volumes:
   postgres_data:

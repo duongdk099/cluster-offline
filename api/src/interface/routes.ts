@@ -6,6 +6,9 @@ import { UpdateNoteUseCase } from '../application/UpdateNote';
 import { DeleteNoteUseCase } from '../application/DeleteNote';
 import { ExportFormat, ExportNoteUseCase } from '../application/ExportNote';
 import { ImportNoteUseCase } from '../application/ImportNote';
+import { SummarizeNoteUseCase } from '../application/SummarizeNote';
+import { SuggestTagsForNoteUseCase } from '../application/SuggestTagsForNote';
+import { DetectActionsInNoteUseCase } from '../application/DetectActionsInNote';
 import { DrizzleNoteRepository } from '../infrastructure/DrizzleNoteRepository';
 import { notifyChange } from '../infrastructure/websocket';
 
@@ -80,6 +83,9 @@ const updateNoteUseCase = new UpdateNoteUseCase(noteRepository);
 const deleteNoteUseCase = new DeleteNoteUseCase(noteRepository);
 const exportNoteUseCase = new ExportNoteUseCase(noteRepository);
 const importNoteUseCase = new ImportNoteUseCase(createNoteUseCase);
+const summarizeNoteUseCase = new SummarizeNoteUseCase(noteRepository);
+const suggestTagsForNoteUseCase = new SuggestTagsForNoteUseCase(noteRepository);
+const detectActionsInNoteUseCase = new DetectActionsInNoteUseCase(noteRepository);
 
 // Search notes
 noteRoutes.get('/search', async (c) => {
@@ -409,6 +415,39 @@ noteRoutes.delete('/:id/permanent', async (c) => {
     notifyChange(payload.sub, 'NOTE_PERMANENTLY_DELETED', id);
 
     return c.json({ message: 'Note permanently deleted' });
+});
+
+noteRoutes.post('/:id/ai/summarize', async (c) => {
+    const payload = c.get('jwtPayload') as { sub: string };
+    try {
+        const result = await summarizeNoteUseCase.execute(c.req.param('id'), payload.sub);
+        if (!result) return c.json({ error: 'Note not found' }, 404);
+        return c.json(result);
+    } catch (e: unknown) {
+        return c.json({ error: e instanceof Error ? e.message : 'Summarize failed' }, 500);
+    }
+});
+
+noteRoutes.post('/:id/ai/auto-tag', async (c) => {
+    const payload = c.get('jwtPayload') as { sub: string };
+    try {
+        const result = await suggestTagsForNoteUseCase.execute(c.req.param('id'), payload.sub);
+        if (!result) return c.json({ error: 'Note not found' }, 404);
+        return c.json(result);
+    } catch (e: unknown) {
+        return c.json({ error: e instanceof Error ? e.message : 'Auto-tag failed' }, 500);
+    }
+});
+
+noteRoutes.post('/:id/ai/extract-actions', async (c) => {
+    const payload = c.get('jwtPayload') as { sub: string };
+    try {
+        const result = await detectActionsInNoteUseCase.execute(c.req.param('id'), payload.sub);
+        if (!result) return c.json({ error: 'Note not found' }, 404);
+        return c.json(result);
+    } catch (e: unknown) {
+        return c.json({ error: e instanceof Error ? e.message : 'Extract actions failed' }, 500);
+    }
 });
 
 export default noteRoutes;

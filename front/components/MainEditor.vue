@@ -166,6 +166,11 @@ function onTagDrop(event: DragEvent) {
           <StatusBadge :status="saveStatus" :created-at="note?.createdAt" :updated-at="note?.updatedAt" />
 
           <div class="flex items-center gap-1">
+            <AIPanel
+              v-if="note?.id"
+              :note-id="note.id"
+              @add-tag="(name) => handleAddTag(name)"
+            />
             <Button variant="ghost" size="icon" title="Share">
               <Share class="size-4" />
             </Button>

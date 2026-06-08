@@ -1,5 +1,6 @@
 import { User, IUserRepository } from '../domain/User';
 import { sign } from 'hono/jwt';
+import { config } from '../config';
 
 export class LoginUserUseCase {
     constructor(private userRepository: IUserRepository, private jwtSecret: string) { }
@@ -18,7 +19,7 @@ export class LoginUserUseCase {
         const payload = {
             sub: user.id,
             email: user.email,
-            exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7, // 7 days
+            exp: Math.floor(Date.now() / 1000) + config.jwtExpirySeconds,
         };
 
         const token = await sign(payload, this.jwtSecret);

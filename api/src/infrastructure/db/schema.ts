@@ -78,3 +78,12 @@ export const noteChunks = pgTable('note_chunks', {
 }, (table) => ({
   noteIdIdx: index('note_chunks_note_id_idx').on(table.noteId),
 }));
+
+export const shareTokens = pgTable('share_tokens', {
+  id: varchar('id', { length: 255 }).primaryKey(),
+  noteId: varchar('note_id', { length: 255 }).notNull().references(() => notes.id, { onDelete: 'cascade' }),
+  token: varchar('token', { length: 64 }).notNull().unique(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (table) => ({
+  noteIdIdx: index('share_tokens_note_id_idx').on(table.noteId),
+}));

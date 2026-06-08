@@ -3,17 +3,17 @@ import { INoteRepository } from '../domain/Note';
 import { extractNoteText } from './extractNoteText';
 import { embedText } from '../infrastructure/GoogleAIClient';
 import { client } from '../infrastructure/db';
-
-const TARGET_MAX = 3200; // ~800 tokens at ~4 chars/token
+import { config } from '../config';
 
 export function chunkText(text: string): string[] {
   const trimmed = text.trim();
   if (!trimmed) return [];
+  const targetMax = config.rag.chunkMaxChars;
   const sentences = trimmed.split(/(?<=[.!?])\s+/);
   const chunks: string[] = [];
   let current = '';
   for (const sentence of sentences) {
-    if (current.length + sentence.length + 1 > TARGET_MAX && current) {
+    if (current.length + sentence.length + 1 > targetMax && current) {
       chunks.push(current.trim());
       current = sentence;
     } else {

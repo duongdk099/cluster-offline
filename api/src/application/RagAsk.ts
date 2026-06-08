@@ -1,6 +1,7 @@
 import { client } from '../infrastructure/db';
 import { embedText, generateText } from '../infrastructure/GoogleAIClient';
 import { detectActionsInText, type DetectedAction } from './DetectActionsInNote';
+import { config } from '../config';
 
 type Citation = { noteId: string; chunkText: string; similarity: number };
 type Intent = 'question' | 'action' | 'mixed';
@@ -25,7 +26,7 @@ async function rerankChunks(query: string, rows: Array<{ chunk_text: string; sim
   if (rows.length === 0) return [];
   try {
     const numbered = rows
-      .map((r, i) => `[${i}] ${r.chunk_text.slice(0, 800)}`)
+      .map((r, i) => `[${i}] ${r.chunk_text.slice(0, config.rag.rerankSnippetChars)}`)
       .join('\n\n');
     const raw = await generateText({
       systemPrompt: "You are a relevance scorer. Given a user query and numbered candidate passages, return ONLY a JSON object of the form { \"scores\": [n0, n1, ...] } where each value is an integer 0-10 indicating how relevant that passage is to answering the query. Same order as the input.",
@@ -68,7 +69,7 @@ export class RagAskUseCase {
       INNER JOIN notes n ON n.id = nc.note_id
       WHERE n.user_id = ${userId} AND n.deleted_at IS NULL
       ORDER BY nc.embedding <=> ${vecLit}::vector
-      LIMIT 20
+      LIMIT ${client.unsafe(String(config.rag.retrieveTopK))}
     `;
 
     if (rows.length === 0) {
@@ -88,7 +89,7 @@ export class RagAskUseCase {
     const ranked = (rows as Array<{ note_id: string; chunk_text: string; similarity: number }>)
       .map((row, i) => ({ ...row, score: scores[i] ?? 0 }))
       .sort((a, b) => b.score - a.score)
-      .slice(0, 8);
+      .slice(0, config.rag.answerTopK);
 
     const context = ranked
       .map((r, i) => `Source [${i + 1}]: ${r.chunk_text}`)

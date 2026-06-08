@@ -7,7 +7,9 @@ import { join } from 'path'
 import noteRoutes from './interface/routes'
 import authRoutes from './interface/authRoutes'
 import ragRoutes from './interface/ragRoutes'
+import publicRoutes from './interface/publicRoutes'
 import { wsEvents } from './infrastructure/websocket'
+import { config } from './config'
 
 const app = new Hono()
 const { upgradeWebSocket, websocket } = createBunWebSocket()
@@ -16,17 +18,14 @@ type SubscribableSocket = {
     subscribe: (channel: string) => void;
 }
 
-const isProduction = process.env.NODE_ENV === 'production'
-const trustProxyHeaders = process.env.TRUST_PROXY_HEADERS === 'true'
-
-const allowedCorsOrigins = (process.env.CORS_ORIGIN || '')
+const allowedCorsOrigins = config.corsOrigin
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean)
 
 function isOriginAllowed(origin: string): boolean {
     if (allowedCorsOrigins.length === 0) {
-        return !isProduction
+        return !config.isProduction
     }
 
     return allowedCorsOrigins.some((allowed) => {
@@ -60,11 +59,7 @@ app.use('*', cors({
     credentials: true,
 }))
 
-// Validate required environment variables
-const jwtSecret = process.env.JWT_SECRET
-if (!jwtSecret) {
-    throw new Error('JWT_SECRET environment variable is required')
-}
+const jwtSecret = config.jwtSecret
 
 app.get('/', (c) => {
     return c.text('Hello from NotesAides API!')
@@ -99,13 +94,10 @@ app.get(
 app.route('/notes', noteRoutes)
 app.route('/auth', authRoutes)
 app.route('/rag', ragRoutes)
+app.route('/share', publicRoutes)
 
 // Serve uploaded files
 app.use('/uploads/*', serveStatic({ root: './' }))
-
-// File upload validation constants
-const ALLOWED_FILE_TYPES = ['image/jpeg', 'image/png', 'image/webp']
-const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
 
 // Authenticated upload endpoint
 app.post('/upload', jwt({ secret: jwtSecret, alg: 'HS256' }), async (c) => {
@@ -118,16 +110,16 @@ app.post('/upload', jwt({ secret: jwtSecret, alg: 'HS256' }), async (c) => {
         }
 
         // Validate file type
-        if (!ALLOWED_FILE_TYPES.includes(file.type)) {
-            return c.json({ 
-                error: 'Invalid file type. Allowed: JPEG, PNG, WebP' 
+        if (!config.allowedUploadMimeTypes.includes(file.type)) {
+            return c.json({
+                error: 'Invalid file type. Allowed: JPEG, PNG, WebP'
             }, 400)
         }
 
         // Validate file size
-        if (file.size > MAX_FILE_SIZE) {
-            return c.json({ 
-                error: 'File too large. Maximum size: 10MB' 
+        if (file.size > config.maxUploadFileBytes) {
+            return c.json({
+                error: 'File too large. Maximum size: 10MB'
             }, 400)
         }
 
@@ -140,16 +132,16 @@ app.post('/upload', jwt({ secret: jwtSecret, alg: 'HS256' }), async (c) => {
         await Bun.write(filePath, bytes)
 
         const requestUrl = new URL(c.req.url)
-        const forwardedProto = trustProxyHeaders
+        const forwardedProto = config.trustProxyHeaders
             ? c.req.header('x-forwarded-proto')?.split(',')[0]?.trim()
             : undefined
-        const forwardedHost = trustProxyHeaders
+        const forwardedHost = config.trustProxyHeaders
             ? c.req.header('x-forwarded-host')?.split(',')[0]?.trim()
             : undefined
         const inferredBaseUrl = forwardedHost
             ? `${forwardedProto || requestUrl.protocol.replace(':', '')}://${forwardedHost}`
             : `${requestUrl.protocol}//${requestUrl.host}`
-        const baseUrl = process.env.API_URL || inferredBaseUrl
+        const baseUrl = config.apiUrl || inferredBaseUrl
         return c.json({
             url: `${baseUrl}/uploads/${fileName}`
         })
@@ -163,7 +155,7 @@ app.post('/upload', jwt({ secret: jwtSecret, alg: 'HS256' }), async (c) => {
 if (import.meta.main) {
     // Bun --watch will naturally handle restarts
     const server = Bun.serve({
-        port: Number(process.env.PORT) || 3001,
+        port: config.port,
         fetch: app.fetch,
         websocket,
     })

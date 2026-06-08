@@ -224,18 +224,19 @@
     line-height: 1.5;
   }
 
-  /* The typography plugin emits `.prose :where(td:first-child) { padding-left: 0 }`
-     and `:last-child { padding-right: 0 }`. Force our padding back, with
-     higher specificity than the plugin's `:where(...)` selectors. */
+  /* @tailwindcss/typography emits padding resets on first/last cells via
+     `padding-inline-start: 0` and `:where(...)`. The cascade should let our
+     more-specific rule win, but in the actual compiled stylesheet it
+     doesn't, so force the win with !important on just these two declarations. */
   .prose table th:first-child,
   .prose table td:first-child {
-    padding-left: 1rem;
+    padding-left: 1rem !important;
   }
 
   .prose table th:last-child,
   .prose table td:last-child {
     border-right: none;
-    padding-right: 1rem;
+    padding-right: 1rem !important;
   }
 
   .prose table tr:last-child > td,
@@ -324,17 +325,20 @@
   }
 
   /* Reset prose `prose-p:my-2` paragraph margins inside table cells so
-     they don't stack on top of the cell padding. */
+     they don't stack on top of the cell padding. !important needed because
+     `prose-p:my-2` is a Tailwind utility (in @layer utilities) which
+     always wins over our @layer components rule regardless of specificity. */
   .prose table th > p,
   .prose table td > p {
-    margin: 0;
+    margin: 0 !important;
   }
 
   /* ---- Task list (checkbox + text alignment) ----
-     The key trick is `padding-top: calc((1lh - 1em) / 2)` on the label.
-     `1lh` is the current line-height in computed length units, so the
-     padding adapts to whatever prose size is active (`prose`, `prose-lg`, etc.)
-     and the checkbox always sits visually centered on the first text line. */
+     Labels get `font: inherit` so they pick up the surrounding text's
+     font-size and line-height; `height: 1lh` makes the label box exactly
+     one text-line tall, and align-items:center puts the checkbox on that
+     line. Works across prose / prose-lg / prose-xl without per-size
+     tuning. */
   ul[data-type="taskList"] {
     list-style: none;
     margin: 1rem 0;
@@ -355,7 +359,12 @@
     user-select: none;
     margin: 0;
     cursor: pointer;
-    padding-top: calc((1lh - 1em) / 2);
+    /* Force the label to use the surrounding text's font metrics so 1lh
+       resolves to the body line-height. Then make the label exactly one
+       text line tall, and align-items:center centers the checkbox on that
+       line — works across prose, prose-lg, prose-xl. */
+    font: inherit;
+    height: 1lh;
   }
 
   ul[data-type="taskList"] li > div {
@@ -364,9 +373,11 @@
   }
 
   /* prose adds `prose-p:my-2` which would push the text down relative to
-     the checkbox; reset paragraph margins inside the task item content. */
+     the checkbox. The utility lives in @layer utilities which beats our
+     @layer components rule regardless of specificity, so the reset has
+     to be !important to take effect. */
   ul[data-type="taskList"] li > div > p {
-    margin: 0;
+    margin: 0 !important;
   }
 
   ul[data-type="taskList"] input[type="checkbox"] {

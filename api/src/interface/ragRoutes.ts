@@ -1,13 +1,11 @@
 import { Hono } from 'hono';
 import { jwt } from 'hono/jwt';
 import { RagAskUseCase } from '../application/RagAsk';
+import { config } from '../config';
 
 const ragRoutes = new Hono();
 
-const jwtSecret = process.env.JWT_SECRET;
-if (!jwtSecret) throw new Error('JWT_SECRET environment variable is required');
-
-ragRoutes.use('*', jwt({ secret: jwtSecret, alg: 'HS256' }));
+ragRoutes.use('*', jwt({ secret: config.jwtSecret, alg: 'HS256' }));
 
 const ragAskUseCase = new RagAskUseCase();
 

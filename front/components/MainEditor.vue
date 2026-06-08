@@ -8,7 +8,6 @@ import {
   AlignRight,
   FileText,
   Plus,
-  Share,
   Trash2,
   X,
 } from 'lucide-vue-next';
@@ -171,9 +170,7 @@ function onTagDrop(event: DragEvent) {
               :note-id="note.id"
               @add-tag="(name) => handleAddTag(name)"
             />
-            <Button variant="ghost" size="icon" title="Share">
-              <Share class="size-4" />
-            </Button>
+            <SharePanel v-if="note?.id" :note="note" />
             <Button
               v-if="note"
               variant="ghost"

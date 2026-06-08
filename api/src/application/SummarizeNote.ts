@@ -1,8 +1,7 @@
 import { INoteRepository } from '../domain/Note';
 import { extractNoteText } from './extractNoteText';
 import { deepseekChat } from '../infrastructure/DeepSeekClient';
-
-const MAX_INPUT_CHARS = 8000;
+import { config } from '../config';
 
 export class SummarizeNoteUseCase {
     constructor(private noteRepository: INoteRepository) {}
@@ -14,8 +13,8 @@ export class SummarizeNoteUseCase {
         }
 
         const rawText = extractNoteText(note.content);
-        const text = rawText.length > MAX_INPUT_CHARS
-            ? rawText.slice(0, MAX_INPUT_CHARS)
+        const text = rawText.length > config.rag.summaryMaxInputChars
+            ? rawText.slice(0, config.rag.summaryMaxInputChars)
             : rawText;
 
         const summary = await deepseekChat({

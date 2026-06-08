@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { jwt } from 'hono/jwt';
+import { randomUUID } from 'crypto';
 import { CreateNoteUseCase } from '../application/CreateNote';
 import { GetNoteUseCase } from '../application/GetNote';
 import { UpdateNoteUseCase } from '../application/UpdateNote';
@@ -11,13 +12,11 @@ import { SuggestTagsForNoteUseCase } from '../application/SuggestTagsForNote';
 import { DetectActionsInNoteUseCase } from '../application/DetectActionsInNote';
 import { ChunkAndEmbedNoteUseCase } from '../application/ChunkAndEmbedNote';
 import { DrizzleNoteRepository } from '../infrastructure/DrizzleNoteRepository';
+import { client } from '../infrastructure/db';
 import { notifyChange } from '../infrastructure/websocket';
+import { config } from '../config';
 
 const noteRoutes = new Hono();
-const MAX_TAGS_PER_NOTE = 20;
-const MAX_TAG_LENGTH = 100;
-const MAX_FOLDER_LENGTH = 100;
-const MAX_IMPORT_FILE_SIZE = 5 * 1024 * 1024;
 const IMPORTABLE_MIME_TYPES = new Set([
     'text/markdown',
     'text/x-markdown',
@@ -40,9 +39,9 @@ function sanitizeTagNames(input: unknown): string[] | null | undefined {
     const normalized = [...new Set(input
         .map((tag) => (typeof tag === 'string' ? tag.trim().replace(/\s+/g, ' ') : ''))
         .filter(Boolean)
-        .map((tag) => tag.slice(0, MAX_TAG_LENGTH)))];
+        .map((tag) => tag.slice(0, config.maxTagLength)))];
 
-    if (normalized.length > MAX_TAGS_PER_NOTE) {
+    if (normalized.length > config.maxTagsPerNote) {
         return null;
     }
 
@@ -71,11 +70,7 @@ function isImportableFile(file: File): boolean {
     return IMPORTABLE_EXTENSIONS.has(extension) && IMPORTABLE_MIME_TYPES.has(file.type);
 }
 
-const jwtSecret = process.env.JWT_SECRET;
-if (!jwtSecret) {
-    throw new Error('JWT_SECRET environment variable is required');
-}
-noteRoutes.use('*', jwt({ secret: jwtSecret, alg: 'HS256' }));
+noteRoutes.use('*', jwt({ secret: config.jwtSecret, alg: 'HS256' }));
 
 const noteRepository = new DrizzleNoteRepository();
 const createNoteUseCase = new CreateNoteUseCase(noteRepository);
@@ -153,7 +148,7 @@ noteRoutes.post('/folders', async (c) => {
         return c.json({ error: 'Folder name is required' }, 400);
     }
 
-    const name = body.name.trim().slice(0, MAX_FOLDER_LENGTH);
+    const name = body.name.trim().slice(0, config.maxFolderLength);
     const folder = await noteRepository.createFolder(payload.sub, name);
     return c.json(folder, 201);
 });
@@ -213,7 +208,7 @@ noteRoutes.post('/import', async (c) => {
         return c.json({ error: 'Invalid folderId format' }, 400);
     }
 
-    if (file.size > MAX_IMPORT_FILE_SIZE) {
+    if (file.size > config.maxImportFileBytes) {
         return c.json({ error: 'File too large. Maximum size: 5MB' }, 400);
     }
 
@@ -349,7 +344,7 @@ noteRoutes.post('/:id/tags', async (c) => {
         return c.json({ error: 'Tag name is required' }, 400);
     }
 
-    const tagName = body.name.trim().slice(0, MAX_TAG_LENGTH);
+    const tagName = body.name.trim().slice(0, config.maxTagLength);
 
     try {
         const tag = await noteRepository.addTagToNote(id, payload.sub, tagName);
@@ -458,6 +453,57 @@ noteRoutes.post('/:id/ai/extract-actions', async (c) => {
     } catch (e: unknown) {
         return c.json({ error: e instanceof Error ? e.message : 'Extract actions failed' }, 500);
     }
+});
+
+noteRoutes.post('/:id/share', async (c) => {
+  const payload = c.get('jwtPayload') as { sub: string };
+  const noteId = c.req.param('id');
+
+  // Verify the note exists and belongs to this user
+  const note = await noteRepository.findById(noteId, payload.sub);
+  if (!note) return c.json({ error: 'Note not found' }, 404);
+
+  // Idempotent: return the existing token if one exists for this note
+  const existing = await client`
+    SELECT token FROM share_tokens WHERE note_id = ${noteId} LIMIT 1
+  `;
+  if (existing.length > 0) {
+    return c.json({ token: existing[0].token as string });
+  }
+
+  const id = randomUUID();
+  const token = (randomUUID() + randomUUID()).replace(/-/g, '').slice(0, 64);
+  await client`
+    INSERT INTO share_tokens (id, note_id, token, created_at)
+    VALUES (${id}, ${noteId}, ${token}, NOW())
+  `;
+  return c.json({ token });
+});
+
+noteRoutes.get('/:id/share', async (c) => {
+  const payload = c.get('jwtPayload') as { sub: string };
+  const noteId = c.req.param('id');
+
+  // Verify ownership before disclosing share state
+  const note = await noteRepository.findById(noteId, payload.sub);
+  if (!note) return c.json({ error: 'Note not found' }, 404);
+
+  const rows = await client`
+    SELECT token FROM share_tokens WHERE note_id = ${noteId} LIMIT 1
+  `;
+  return c.json({ token: rows.length > 0 ? (rows[0].token as string) : null });
+});
+
+noteRoutes.delete('/:id/share', async (c) => {
+  const payload = c.get('jwtPayload') as { sub: string };
+  const noteId = c.req.param('id');
+
+  // Verify ownership before deleting
+  const note = await noteRepository.findById(noteId, payload.sub);
+  if (!note) return c.json({ error: 'Note not found' }, 404);
+
+  await client`DELETE FROM share_tokens WHERE note_id = ${noteId}`;
+  return c.json({ token: null });
 });
 
 export default noteRoutes;

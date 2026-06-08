@@ -4,17 +4,13 @@ import { LoginUserUseCase } from '../application/LoginUser';
 import { ForgetPasswordUseCase } from '../application/ForgetPassword';
 import { ResetPasswordUseCase } from '../application/ResetPassword';
 import { DrizzleUserRepository } from '../infrastructure/DrizzleUserRepository';
+import { config } from '../config';
 
 const authRoutes = new Hono();
 const userRepository = new DrizzleUserRepository();
 
-const jwtSecret = process.env.JWT_SECRET;
-if (!jwtSecret) {
-    throw new Error('JWT_SECRET environment variable is required');
-}
-
 const registerUserUseCase = new RegisterUserUseCase(userRepository);
-const loginUserUseCase = new LoginUserUseCase(userRepository, jwtSecret);
+const loginUserUseCase = new LoginUserUseCase(userRepository, config.jwtSecret);
 const forgetPasswordUseCase = new ForgetPasswordUseCase(userRepository);
 const resetPasswordUseCase = new ResetPasswordUseCase(userRepository);
 

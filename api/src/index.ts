@@ -6,6 +6,7 @@ import { randomUUID } from 'crypto'
 import { join } from 'path'
 import noteRoutes from './interface/routes'
 import authRoutes from './interface/authRoutes'
+import ragRoutes from './interface/ragRoutes'
 import { wsEvents } from './infrastructure/websocket'
 
 const app = new Hono()
@@ -97,6 +98,7 @@ app.get(
 
 app.route('/notes', noteRoutes)
 app.route('/auth', authRoutes)
+app.route('/rag', ragRoutes)
 
 // Serve uploaded files
 app.use('/uploads/*', serveStatic({ root: './' }))

@@ -18,7 +18,7 @@ services:
     command: bun run dev
 
   db:
-    image: postgres:15-alpine
+    image: pgvector/pgvector:pg15
     environment:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password

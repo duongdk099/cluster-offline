@@ -7,6 +7,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
+  Sparkles,
   Tags,
   Trash2,
 } from 'lucide-vue-next';
@@ -119,6 +120,14 @@ async function handleDropOnFolder(folderId: string, event: DragEvent) {
     });
   }
 }
+
+function handleTagDragStart(event: DragEvent, tag: { id: string; name: string }) {
+  if (!event.dataTransfer) return;
+  event.dataTransfer.effectAllowed = 'copy';
+  event.dataTransfer.setData('application/x-notesaides-tag', JSON.stringify({ id: tag.id, name: tag.name }));
+  // Also expose the readable name; some browsers expect at least one standard MIME type.
+  event.dataTransfer.setData('text/x-notesaides-tag-name', tag.name);
+}
 </script>
 
 <template>
@@ -160,6 +169,18 @@ async function handleDropOnFolder(folderId: string, event: DragEvent) {
               <span v-if="!isCollapsed" class="truncate">All notes</span>
             </span>
           </button>
+          <NuxtLink to="/ask" @click="emit('close')">
+            <button
+              type="button"
+              :class="navItemClass(route.path === '/ask')"
+              title="Ask AI"
+            >
+              <span class="flex min-w-0 items-center gap-2">
+                <Sparkles class="size-4" />
+                <span v-if="!isCollapsed" class="truncate">Ask AI</span>
+              </span>
+            </button>
+          </NuxtLink>
           <NuxtLink to="/notes/deleted" @click="emit('close')">
             <button
               type="button"
@@ -188,9 +209,11 @@ async function handleDropOnFolder(folderId: string, event: DragEvent) {
             v-for="tag in tags ?? []"
             :key="tag.id"
             type="button"
-            :class="navItemClass(selectedTag === tag.id)"
+            :class="[navItemClass(selectedTag === tag.id), 'cursor-grab active:cursor-grabbing']"
             :title="`#${tag.name}`"
+            draggable="true"
             @click="selectTag(tag.id)"
+            @dragstart="handleTagDragStart($event, tag)"
           >
             <span class="flex min-w-0 items-center gap-2">
               <Tags class="size-4" />

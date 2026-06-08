@@ -6,10 +6,8 @@ import {
   AlignCenter,
   AlignLeft,
   AlignRight,
-  Crop,
   FileText,
   Plus,
-  RotateCw,
   Share,
   Trash2,
   X,
@@ -19,7 +17,7 @@ import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
 import { Skeleton } from '~/components/ui/skeleton';
 import type { Note } from '~/types/notes';
-import { normalizeUploadedImageUrl, stripHtml } from '~/utils/notes';
+import { stripHtml } from '~/utils/notes';
 
 const props = withDefaults(defineProps<{
   note?: Note | null;
@@ -34,11 +32,10 @@ const emit = defineEmits<{
   delete: [];
 }>();
 
-const config = useRuntimeConfig();
 const fileInputRef = ref<HTMLInputElement | null>(null);
-const cropImageInfo = ref<{ src: string; file: File } | null>(null);
 const isTagComposerOpen = ref(false);
 const deleteDialogOpen = ref(false);
+const isTagDropOver = ref(false);
 
 const { data: folders } = useFolders();
 const { data: availableTags } = useTags();
@@ -55,8 +52,6 @@ const {
   handleRemoveTag,
   handleFolderChange,
   handleFileUpload,
-  handleCrop,
-  handleRotate,
 } = useNoteEditor({
   note: toRef(props, 'note'),
   isPending: toRef(props, 'isPending'),
@@ -96,57 +91,47 @@ function cancelTagComposer() {
   isTagComposerOpen.value = false;
 }
 
-function getAbsoluteImageUrl(src: string) {
-  let fullUrl = normalizeUploadedImageUrl(src.split('?')[0]);
-  if (!fullUrl.startsWith('http')) {
-    const baseUrl = String(config.public.apiUrl || 'http://localhost:3001').replace(/\/$/, '');
-    fullUrl = `${baseUrl}${fullUrl.startsWith('/') ? '' : '/'}${fullUrl}`;
-  }
-  return fullUrl;
-}
-
-async function getSelectedImageFile(filename: string) {
-  if (!editor.value) return null;
-
-  const attrs = editor.value.getAttributes('image');
-  if (!attrs.src) return null;
-
-  const response = await fetch(getAbsoluteImageUrl(attrs.src));
-  const blob = await response.blob();
-  return {
-    src: attrs.src,
-    file: new File([blob], filename, { type: blob.type }),
-  };
-}
-
-async function startRotate(degrees: number) {
-  if (!editor.value || saveStatus.value === 'rotating' || saveStatus.value === 'saving') return;
-
-  try {
-    const image = await getSelectedImageFile('image-to-rotate.webp');
-    if (image) void handleRotate(image.file, degrees);
-  } catch (error) {
-    toast.error('Failed to fetch image for rotating', {
-      description: error instanceof Error ? error.message : undefined,
-    });
-  }
-}
-
-async function startCrop() {
-  if (!editor.value) return;
-
-  try {
-    cropImageInfo.value = await getSelectedImageFile('image-to-crop.webp');
-  } catch (error) {
-    toast.error('Failed to fetch image for cropping', {
-      description: error instanceof Error ? error.message : undefined,
-    });
-  }
-}
-
 function confirmDelete() {
   deleteDialogOpen.value = false;
   emit('delete');
+}
+
+function hasTagDrag(event: DragEvent): boolean {
+  return !!event.dataTransfer?.types.includes('application/x-notesaides-tag');
+}
+
+function onTagDragOver(event: DragEvent) {
+  if (!hasTagDrag(event)) return;
+  event.preventDefault();
+  isTagDropOver.value = true;
+}
+
+function onTagDragLeave(event: DragEvent) {
+  const next = event.relatedTarget as Node | null;
+  if (next && (event.currentTarget as Node).contains(next)) return;
+  isTagDropOver.value = false;
+}
+
+function onTagDrop(event: DragEvent) {
+  isTagDropOver.value = false;
+  if (!hasTagDrag(event)) return;
+  if (!props.note?.id) return;
+
+  let tag: { id: string; name: string };
+  try {
+    tag = JSON.parse(event.dataTransfer!.getData('application/x-notesaides-tag'));
+  } catch {
+    toast.error('Failed to read tag data');
+    return;
+  }
+
+  const alreadyHasTag = tags.value.some(
+    (t) => t.toLowerCase() === tag.name.toLowerCase(),
+  );
+  if (alreadyHasTag) return;
+
+  handleAddTag(tag.name);
+  toast.success(`Tag #${tag.name} added`);
 }
 </script>
 
@@ -181,6 +166,11 @@ function confirmDelete() {
           <StatusBadge :status="saveStatus" :created-at="note?.createdAt" :updated-at="note?.updatedAt" />
 
           <div class="flex items-center gap-1">
+            <AIPanel
+              v-if="note?.id"
+              :note-id="note.id"
+              @add-tag="(name) => handleAddTag(name)"
+            />
             <Button variant="ghost" size="icon" title="Share">
               <Share class="size-4" />
             </Button>
@@ -217,7 +207,14 @@ function confirmDelete() {
           @keydown.enter.prevent="editor?.commands.focus()"
         >
 
-        <div class="mb-8 flex flex-wrap items-center gap-2">
+        <div
+          class="mb-8 flex flex-wrap items-center gap-2"
+          :class="isTagDropOver ? 'rounded-md ring-2 ring-primary/40 ring-offset-2 ring-offset-background' : ''"
+          @dragenter="onTagDragOver"
+          @dragover.prevent="onTagDragOver"
+          @dragleave="onTagDragLeave"
+          @drop.prevent="onTagDrop"
+        >
           <FolderPicker
             :folders="folders ?? []"
             :model-value="folderId"
@@ -287,13 +284,6 @@ function confirmDelete() {
               >
                 <AlignRight class="size-4" />
               </Button>
-              <div class="mx-1 h-5 w-px bg-border" />
-              <Button variant="ghost" size="icon" title="Rotate 90 degrees" @click="startRotate(90)">
-                <RotateCw class="size-4" />
-              </Button>
-              <Button variant="ghost" size="icon" title="Crop image" @click="startCrop">
-                <Crop class="size-4" />
-              </Button>
             </div>
           </BubbleMenu>
 
@@ -310,13 +300,6 @@ function confirmDelete() {
     </main>
 
     <EditorStatusBar :folder-name="selectedFolder?.name" :tags="tags" :word-count="wordCount" />
-
-    <ImageCropModal
-      v-if="cropImageInfo"
-      :image-url="cropImageInfo.src"
-      @cancel="cropImageInfo = null"
-      @crop="(pixelCrop) => { if (cropImageInfo) handleCrop(cropImageInfo.file, pixelCrop); cropImageInfo = null; }"
-    />
 
     <Teleport to="body">
       <div

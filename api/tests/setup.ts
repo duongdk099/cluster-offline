@@ -9,3 +9,6 @@ if (!process.env.JWT_SECRET) {
 if (!process.env.DATABASE_URL) {
     process.env.DATABASE_URL = 'postgres://user:password@localhost:5433/notesdb';
 }
+if (!process.env.GOOGLE_API_KEY) {
+    process.env.GOOGLE_API_KEY = 'test-google-api-key';
+}

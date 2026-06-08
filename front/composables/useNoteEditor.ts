@@ -13,20 +13,11 @@ import { storeToRefs } from 'pinia';
 import type { MaybeRefOrGetter } from 'vue';
 import { toast } from 'vue-sonner';
 import { ResizableImage } from '~/components/editor/extensions/ResizableImage';
-import { cropImage, optimizeImage, rotateImage } from '~/utils/imageOptimizer';
 import { normalizeUploadedImageUrl } from '~/utils/notes';
 import { uploadImage } from '~/services/notesService';
 import type { Note } from '~/types/notes';
 
-export type SaveStatus = 'idle' | 'saving' | 'saved' | 'optimizing' | 'cropping' | 'rotating';
-
-export type PixelCrop = {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  unit?: 'px';
-};
+export type SaveStatus = 'idle' | 'saving' | 'saved';
 
 interface UseNoteEditorProps {
   note?: MaybeRefOrGetter<Note | null | undefined>;
@@ -113,13 +104,10 @@ export function useNoteEditor({ note, onSave, isPending }: UseNoteEditorProps) {
       const currentEditor = editor.value as Editor | null;
       if (!currentEditor) return;
 
-      const currentContent = currentEditor.getJSON();
-      if (isEditorContentEmpty(currentContent)) return;
-
       saveStatus.value = 'saving';
       onSave({
         title: title.value.trim() || '',
-        content: currentContent,
+        content: currentEditor.getJSON(),
         tags: normalizeTagList(tags.value),
         folderId: folderId.value,
       });
@@ -143,11 +131,8 @@ export function useNoteEditor({ note, onSave, isPending }: UseNoteEditorProps) {
     }
 
     try {
-      saveStatus.value = 'optimizing';
-      const optimizedFile = await optimizeImage(file);
-
       saveStatus.value = 'saving';
-      const result = await uploadImage(token.value, optimizedFile);
+      const result = await uploadImage(token.value, file);
       if (!result.success) throw new Error(result.error);
 
       const timestampUrl = `${normalizeUploadedImageUrl(result.data.url)}?v=${Date.now()}`;
@@ -155,52 +140,6 @@ export function useNoteEditor({ note, onSave, isPending }: UseNoteEditorProps) {
       saveStatus.value = 'saved';
     } catch (error) {
       toast.error('Failed to upload image', {
-        description: error instanceof Error ? error.message : undefined,
-      });
-      saveStatus.value = 'idle';
-    }
-  }
-
-  async function handleCrop(file: File, pixelCrop: PixelCrop) {
-    const currentEditor = editor.value as Editor | null;
-    if (!currentEditor || !token.value) return;
-
-    try {
-      saveStatus.value = 'cropping';
-      const croppedFile = await cropImage(file, pixelCrop.x, pixelCrop.y, pixelCrop.width, pixelCrop.height);
-
-      saveStatus.value = 'saving';
-      const result = await uploadImage(token.value, croppedFile);
-      if (!result.success) throw new Error(result.error);
-
-      const timestampUrl = `${normalizeUploadedImageUrl(result.data.url)}?v=${Date.now()}`;
-      currentEditor.chain().focus().deleteSelection().setImage({ src: timestampUrl }).run();
-      saveStatus.value = 'saved';
-    } catch (error) {
-      toast.error('Failed to crop image', {
-        description: error instanceof Error ? error.message : undefined,
-      });
-      saveStatus.value = 'idle';
-    }
-  }
-
-  async function handleRotate(file: File, degrees: number) {
-    const currentEditor = editor.value as Editor | null;
-    if (!currentEditor || !token.value) return;
-
-    try {
-      saveStatus.value = 'rotating';
-      const rotatedFile = await rotateImage(file, degrees);
-
-      saveStatus.value = 'saving';
-      const result = await uploadImage(token.value, rotatedFile);
-      if (!result.success) throw new Error(result.error);
-
-      const timestampUrl = `${normalizeUploadedImageUrl(result.data.url)}?v=${Date.now()}`;
-      currentEditor.chain().focus().deleteSelection().setImage({ src: timestampUrl }).run();
-      saveStatus.value = 'saved';
-    } catch (error) {
-      toast.error('Failed to rotate image', {
         description: error instanceof Error ? error.message : undefined,
       });
       saveStatus.value = 'idle';
@@ -371,8 +310,6 @@ export function useNoteEditor({ note, onSave, isPending }: UseNoteEditorProps) {
     handleRemoveTag,
     handleFolderChange,
     handleFileUpload,
-    handleCrop,
-    handleRotate,
     setSaveStatus: (status: SaveStatus) => {
       saveStatus.value = status;
     },

@@ -1,28 +1,21 @@
 <script setup lang="ts">
-import type { JSONContent } from '@tiptap/core';
-import { toast } from 'vue-sonner';
-
+// /notes/new is now a thin redirect: create a blank note and replace the URL
+// with /notes/{id} so it never lingers in browser history. All real entry
+// points (sidebar, top bar, command palette, mobile FAB, "/" page) call the
+// composable directly and never navigate to /notes/new in the first place;
+// this page exists only as a safety net for bookmarks / typed URLs.
 const router = useRouter();
-const createNote = useCreateNote();
+const { openBlankNote } = useCreateAndOpenBlankNote();
 
-async function handleSave(data: { title: string; content: JSONContent; tags?: string[]; folderId?: string | null }) {
-  try {
-    const note = await createNote.mutateAsync(data);
-    toast.success('Note created');
-    void router.push(`/notes/${note.id}`);
-  } catch (error) {
-    toast.error('Failed to create note', {
-      description: error instanceof Error ? error.message : undefined,
-    });
-  }
-}
+onMounted(() => {
+  void openBlankNote({ replace: true }).catch(() => {
+    void router.replace('/');
+  });
+});
 </script>
 
 <template>
-  <MainEditor
-    :key="'new'"
-    :note="null"
-    :is-pending="createNote.isPending.value"
-    @save="handleSave"
-  />
+  <div class="flex h-full items-center justify-center text-sm text-muted-foreground">
+    Creating note…
+  </div>
 </template>

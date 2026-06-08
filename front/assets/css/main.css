@@ -325,10 +325,12 @@
   }
 
   /* Reset prose `prose-p:my-2` paragraph margins inside table cells so
-     they don't stack on top of the cell padding. */
+     they don't stack on top of the cell padding. !important needed because
+     `prose-p:my-2` is a Tailwind utility (in @layer utilities) which
+     always wins over our @layer components rule regardless of specificity. */
   .prose table th > p,
   .prose table td > p {
-    margin: 0;
+    margin: 0 !important;
   }
 
   /* ---- Task list (checkbox + text alignment) ----
@@ -371,9 +373,11 @@
   }
 
   /* prose adds `prose-p:my-2` which would push the text down relative to
-     the checkbox; reset paragraph margins inside the task item content. */
+     the checkbox. The utility lives in @layer utilities which beats our
+     @layer components rule regardless of specificity, so the reset has
+     to be !important to take effect. */
   ul[data-type="taskList"] li > div > p {
-    margin: 0;
+    margin: 0 !important;
   }
 
   ul[data-type="taskList"] input[type="checkbox"] {

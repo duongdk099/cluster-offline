@@ -1,23 +1,28 @@
+import { GoogleGenAI } from '@google/genai';
 import { config } from '../config';
 
-function apiKey(): string {
-  const key = config.google.apiKey;
-  if (!key) throw new Error('GOOGLE_API_KEY environment variable is required');
-  return key;
+let client: GoogleGenAI | null = null;
+
+function getClient(): GoogleGenAI {
+  if (!config.google.apiKey) {
+    throw new Error('GOOGLE_API_KEY environment variable is required');
+  }
+  if (!client) {
+    client = new GoogleGenAI({ apiKey: config.google.apiKey });
+  }
+  return client;
 }
 
 export async function embedText(text: string): Promise<number[]> {
-  const res = await fetch(`${config.google.baseUrl}/models/${config.google.embedModel}:embedContent?key=${apiKey()}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: `models/${config.google.embedModel}`,
-      content: { parts: [{ text }] },
-    }),
+  const result = await getClient().models.embedContent({
+    model: config.google.embedModel,
+    contents: text,
   });
-  if (!res.ok) throw new Error(`embedText failed: ${res.status} ${await res.text()}`);
-  const data = await res.json() as { embedding: { values: number[] } };
-  return data.embedding.values;
+  const values = result.embeddings?.[0]?.values;
+  if (!Array.isArray(values)) {
+    throw new Error('embedText: no embedding returned');
+  }
+  return values;
 }
 
 export async function generateText(opts: {
@@ -26,22 +31,15 @@ export async function generateText(opts: {
   temperature?: number;
   maxTokens?: number;
 }): Promise<string> {
-  const body: Record<string, unknown> = {
-    contents: [{ role: 'user', parts: [{ text: opts.userPrompt }] }],
-    generationConfig: {
+  const result = await getClient().models.generateContent({
+    model: config.google.chatModel,
+    contents: opts.userPrompt,
+    config: {
+      systemInstruction: opts.systemPrompt,
       temperature: opts.temperature ?? config.google.temperature,
       maxOutputTokens: opts.maxTokens ?? config.google.maxTokens,
     },
-  };
-  if (opts.systemPrompt) {
-    body.system_instruction = { parts: [{ text: opts.systemPrompt }] };
-  }
-  const res = await fetch(`${config.google.baseUrl}/models/${config.google.chatModel}:generateContent?key=${apiKey()}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`generateText failed: ${res.status} ${await res.text()}`);
-  const data = await res.json() as { candidates: Array<{ content: { parts: Array<{ text: string }> } }> };
-  return data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+  if (typeof result.text === 'string') return result.text;
+  return result.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
 }

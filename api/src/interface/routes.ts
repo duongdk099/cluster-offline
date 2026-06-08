@@ -12,12 +12,9 @@ import { DetectActionsInNoteUseCase } from '../application/DetectActionsInNote';
 import { ChunkAndEmbedNoteUseCase } from '../application/ChunkAndEmbedNote';
 import { DrizzleNoteRepository } from '../infrastructure/DrizzleNoteRepository';
 import { notifyChange } from '../infrastructure/websocket';
+import { config } from '../config';
 
 const noteRoutes = new Hono();
-const MAX_TAGS_PER_NOTE = 20;
-const MAX_TAG_LENGTH = 100;
-const MAX_FOLDER_LENGTH = 100;
-const MAX_IMPORT_FILE_SIZE = 5 * 1024 * 1024;
 const IMPORTABLE_MIME_TYPES = new Set([
     'text/markdown',
     'text/x-markdown',
@@ -40,9 +37,9 @@ function sanitizeTagNames(input: unknown): string[] | null | undefined {
     const normalized = [...new Set(input
         .map((tag) => (typeof tag === 'string' ? tag.trim().replace(/\s+/g, ' ') : ''))
         .filter(Boolean)
-        .map((tag) => tag.slice(0, MAX_TAG_LENGTH)))];
+        .map((tag) => tag.slice(0, config.maxTagLength)))];
 
-    if (normalized.length > MAX_TAGS_PER_NOTE) {
+    if (normalized.length > config.maxTagsPerNote) {
         return null;
     }
 
@@ -71,11 +68,7 @@ function isImportableFile(file: File): boolean {
     return IMPORTABLE_EXTENSIONS.has(extension) && IMPORTABLE_MIME_TYPES.has(file.type);
 }
 
-const jwtSecret = process.env.JWT_SECRET;
-if (!jwtSecret) {
-    throw new Error('JWT_SECRET environment variable is required');
-}
-noteRoutes.use('*', jwt({ secret: jwtSecret, alg: 'HS256' }));
+noteRoutes.use('*', jwt({ secret: config.jwtSecret, alg: 'HS256' }));
 
 const noteRepository = new DrizzleNoteRepository();
 const createNoteUseCase = new CreateNoteUseCase(noteRepository);
@@ -153,7 +146,7 @@ noteRoutes.post('/folders', async (c) => {
         return c.json({ error: 'Folder name is required' }, 400);
     }
 
-    const name = body.name.trim().slice(0, MAX_FOLDER_LENGTH);
+    const name = body.name.trim().slice(0, config.maxFolderLength);
     const folder = await noteRepository.createFolder(payload.sub, name);
     return c.json(folder, 201);
 });
@@ -213,7 +206,7 @@ noteRoutes.post('/import', async (c) => {
         return c.json({ error: 'Invalid folderId format' }, 400);
     }
 
-    if (file.size > MAX_IMPORT_FILE_SIZE) {
+    if (file.size > config.maxImportFileBytes) {
         return c.json({ error: 'File too large. Maximum size: 5MB' }, 400);
     }
 
@@ -349,7 +342,7 @@ noteRoutes.post('/:id/tags', async (c) => {
         return c.json({ error: 'Tag name is required' }, 400);
     }
 
-    const tagName = body.name.trim().slice(0, MAX_TAG_LENGTH);
+    const tagName = body.name.trim().slice(0, config.maxTagLength);
 
     try {
         const tag = await noteRepository.addTagToNote(id, payload.sub, tagName);

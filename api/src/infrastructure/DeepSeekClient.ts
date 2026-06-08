@@ -1,3 +1,5 @@
+import { config } from '../config';
+
 export async function deepseekChat(opts: {
     messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>;
     model?: string;
@@ -5,26 +7,24 @@ export async function deepseekChat(opts: {
     temperature?: number;
     maxTokens?: number;
 }): Promise<string> {
-    const apiKey = process.env.DEEPSEEK_API_KEY;
-    if (!apiKey) {
-        throw new Error('DEEPSEEK_API_KEY environment variable is required');
-    }
+    const key = config.deepseek.apiKey;
+    if (!key) throw new Error('DEEPSEEK_API_KEY environment variable is required');
 
     const body: Record<string, unknown> = {
-        model: opts.model ?? 'deepseek-chat',
+        model: opts.model ?? config.deepseek.chatModel,
         messages: opts.messages,
-        temperature: opts.temperature ?? 0.2,
-        max_tokens: opts.maxTokens ?? 1024,
+        temperature: opts.temperature ?? config.deepseek.temperature,
+        max_tokens: opts.maxTokens ?? config.deepseek.maxTokens,
     };
 
     if (opts.jsonMode) {
         body.response_format = { type: 'json_object' };
     }
 
-    const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+    const response = await fetch(`${config.deepseek.baseUrl}/chat/completions`, {
         method: 'POST',
         headers: {
-            Authorization: `Bearer ${apiKey}`,
+            Authorization: `Bearer ${key}`,
             'Content-Type': 'application/json',
         },
         body: JSON.stringify(body),

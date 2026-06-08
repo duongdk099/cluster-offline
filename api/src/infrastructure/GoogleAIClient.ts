@@ -1,19 +1,17 @@
-const BASE = 'https://generativelanguage.googleapis.com/v1beta';
-const EMBED_MODEL = 'text-embedding-004';
-const CHAT_MODEL = 'gemini-2.5-flash-lite';
+import { config } from '../config';
 
 function apiKey(): string {
-  const key = process.env.GOOGLE_API_KEY;
+  const key = config.google.apiKey;
   if (!key) throw new Error('GOOGLE_API_KEY environment variable is required');
   return key;
 }
 
 export async function embedText(text: string): Promise<number[]> {
-  const res = await fetch(`${BASE}/models/${EMBED_MODEL}:embedContent?key=${apiKey()}`, {
+  const res = await fetch(`${config.google.baseUrl}/models/${config.google.embedModel}:embedContent?key=${apiKey()}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: `models/${EMBED_MODEL}`,
+      model: `models/${config.google.embedModel}`,
       content: { parts: [{ text }] },
     }),
   });
@@ -31,14 +29,14 @@ export async function generateText(opts: {
   const body: Record<string, unknown> = {
     contents: [{ role: 'user', parts: [{ text: opts.userPrompt }] }],
     generationConfig: {
-      temperature: opts.temperature ?? 0.2,
-      maxOutputTokens: opts.maxTokens ?? 1024,
+      temperature: opts.temperature ?? config.google.temperature,
+      maxOutputTokens: opts.maxTokens ?? config.google.maxTokens,
     },
   };
   if (opts.systemPrompt) {
     body.system_instruction = { parts: [{ text: opts.systemPrompt }] };
   }
-  const res = await fetch(`${BASE}/models/${CHAT_MODEL}:generateContent?key=${apiKey()}`, {
+  const res = await fetch(`${config.google.baseUrl}/models/${config.google.chatModel}:generateContent?key=${apiKey()}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),

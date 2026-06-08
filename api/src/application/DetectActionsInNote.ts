@@ -1,8 +1,8 @@
 import { INoteRepository } from '../domain/Note';
 import { extractNoteText } from './extractNoteText';
 import { deepseekChat } from '../infrastructure/DeepSeekClient';
+import { config } from '../config';
 
-const MAX_INPUT_CHARS = 8000;
 const MAX_CALENDAR_EVENTS = 10;
 
 export type DetectedAction =
@@ -80,8 +80,9 @@ function validateAction(raw: unknown): DetectedAction | null {
 }
 
 export async function detectActionsInText(text: string): Promise<DetectedAction[]> {
-    const trimmed = text.length > MAX_INPUT_CHARS
-        ? text.slice(0, MAX_INPUT_CHARS)
+    const maxInputChars = config.rag.detectActionsMaxInputChars;
+    const trimmed = text.length > maxInputChars
+        ? text.slice(0, maxInputChars)
         : text;
 
     const systemPrompt = [

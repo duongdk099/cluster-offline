@@ -1,4 +1,17 @@
-import { pgTable, timestamp, varchar, jsonb, text, index, uniqueIndex, primaryKey } from 'drizzle-orm/pg-core';
+import { pgTable, timestamp, varchar, jsonb, text, index, uniqueIndex, primaryKey, customType, integer } from 'drizzle-orm/pg-core';
+
+const vector = customType<{ data: number[]; driverData: string; config: { dimensions: number } }>({
+  dataType(config) {
+    return `vector(${config?.dimensions ?? 768})`;
+  },
+  toDriver(value: number[]): string {
+    return `[${value.join(',')}]`;
+  },
+  fromDriver(value: unknown): number[] {
+    if (typeof value === 'string') return JSON.parse(value);
+    return value as number[];
+  },
+});
 
 export const notes = pgTable('notes', {
     id: varchar('id', { length: 255 }).primaryKey(),
@@ -53,3 +66,15 @@ export const users = pgTable('users', {
     resetTokenExpiry: timestamp('reset_token_expiry'),
     createdAt: timestamp('created_at').notNull(),
 });
+
+export const noteChunks = pgTable('note_chunks', {
+  id: varchar('id', { length: 255 }).primaryKey(),
+  noteId: varchar('note_id', { length: 255 }).notNull().references(() => notes.id, { onDelete: 'cascade' }),
+  contentHash: varchar('content_hash', { length: 64 }).notNull(),
+  chunkIndex: integer('chunk_index').notNull(),
+  chunkText: text('chunk_text').notNull(),
+  embedding: vector('embedding', { dimensions: 768 }).notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (table) => ({
+  noteIdIdx: index('note_chunks_note_id_idx').on(table.noteId),
+}));

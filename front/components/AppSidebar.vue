@@ -7,6 +7,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
+  Sparkles,
   Tags,
   Trash2,
 } from 'lucide-vue-next';
@@ -168,6 +169,18 @@ function handleTagDragStart(event: DragEvent, tag: { id: string; name: string })
               <span v-if="!isCollapsed" class="truncate">All notes</span>
             </span>
           </button>
+          <NuxtLink to="/ask" @click="emit('close')">
+            <button
+              type="button"
+              :class="navItemClass(route.path === '/ask')"
+              title="Ask AI"
+            >
+              <span class="flex min-w-0 items-center gap-2">
+                <Sparkles class="size-4" />
+                <span v-if="!isCollapsed" class="truncate">Ask AI</span>
+              </span>
+            </button>
+          </NuxtLink>
           <NuxtLink to="/notes/deleted" @click="emit('close')">
             <button
               type="button"

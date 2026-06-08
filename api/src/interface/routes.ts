@@ -9,6 +9,7 @@ import { ImportNoteUseCase } from '../application/ImportNote';
 import { SummarizeNoteUseCase } from '../application/SummarizeNote';
 import { SuggestTagsForNoteUseCase } from '../application/SuggestTagsForNote';
 import { DetectActionsInNoteUseCase } from '../application/DetectActionsInNote';
+import { ChunkAndEmbedNoteUseCase } from '../application/ChunkAndEmbedNote';
 import { DrizzleNoteRepository } from '../infrastructure/DrizzleNoteRepository';
 import { notifyChange } from '../infrastructure/websocket';
 
@@ -86,6 +87,7 @@ const importNoteUseCase = new ImportNoteUseCase(createNoteUseCase);
 const summarizeNoteUseCase = new SummarizeNoteUseCase(noteRepository);
 const suggestTagsForNoteUseCase = new SuggestTagsForNoteUseCase(noteRepository);
 const detectActionsInNoteUseCase = new DetectActionsInNoteUseCase(noteRepository);
+const chunkAndEmbedUseCase = new ChunkAndEmbedNoteUseCase(noteRepository);
 
 // Search notes
 noteRoutes.get('/search', async (c) => {
@@ -182,6 +184,10 @@ noteRoutes.post('/', async (c) => {
 
     // Notify clients
     notifyChange(payload.sub, 'NOTE_CREATED', note.id);
+
+    void chunkAndEmbedUseCase.execute(note.id, payload.sub).catch((err) => {
+        console.error('[chunk+embed create]', err);
+    });
 
     return c.json(note, 201);
 });
@@ -311,6 +317,10 @@ noteRoutes.on(['PUT', 'PATCH'], '/:id', async (c) => {
 
     // Notify clients
     notifyChange(payload.sub, 'NOTE_UPDATED', note.id);
+
+    void chunkAndEmbedUseCase.execute(note.id, payload.sub).catch((err) => {
+        console.error('[chunk+embed update]', err);
+    });
 
     return c.json(note);
 });

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { JSONContent } from '@tiptap/core';
 import { toast } from 'vue-sonner';
+import type { Note } from '~/types/notes';
 
 // Force the page component to re-mount on every note id change so
 // the global <NuxtPage :transition="page"> animation fires when
@@ -13,6 +14,7 @@ const route = useRoute();
 const router = useRouter();
 const id = computed(() => String(route.params.id));
 const { data: note } = useNote(id);
+const { data: allNotes, isLoading: notesLoading, isError: notesError } = useNotes();
 const updateNote = useUpdateNote();
 const deleteNote = useDeleteNote();
 
@@ -40,14 +42,32 @@ async function handleDelete() {
     });
   }
 }
+
+function goToNote(target: Note) {
+  void router.push(`/notes/${target.id}`);
+}
 </script>
 
 <template>
-  <MainEditor
-    :key="id"
-    :note="note"
-    :is-pending="updateNote.isPending.value"
-    @save="handleSave"
-    @delete="handleDelete"
-  />
+  <div class="flex h-full min-h-0">
+    <aside class="hidden w-80 shrink-0 flex-col border-r bg-background md:flex">
+      <NoteList
+        :notes="allNotes ?? []"
+        :is-loading="notesLoading"
+        :is-error="notesError"
+        :selected-id="id"
+        title="Notes"
+        @select="goToNote"
+      />
+    </aside>
+    <div class="min-w-0 flex-1 overflow-hidden">
+      <MainEditor
+        :key="id"
+        :note="note"
+        :is-pending="updateNote.isPending.value"
+        @save="handleSave"
+        @delete="handleDelete"
+      />
+    </div>
+  </div>
 </template>

@@ -79,6 +79,66 @@ function validateAction(raw: unknown): DetectedAction | null {
     return null;
 }
 
+export async function detectActionsInText(text: string): Promise<DetectedAction[]> {
+    const trimmed = text.length > MAX_INPUT_CHARS
+        ? text.slice(0, MAX_INPUT_CHARS)
+        : text;
+
+    const systemPrompt = [
+        'You analyze personal notes and extract actionable items.',
+        'Return STRICT JSON in the exact form: {"actions": [...]}.',
+        'Each action has a "type" field which is one of: "calendar", "email", "notification".',
+        'Calendar action shape: {"type":"calendar","events":[{"title":string,"date"?:string,"notes"?:string}, ...]} — use this when the note contains todo lists, scheduled items, meetings, or deadlines. Include up to 10 events. The "date" field should be ISO-like (YYYY-MM-DD or YYYY-MM-DDTHH:mm) when known; omit it otherwise.',
+        'Email action shape: {"type":"email","to"?:string,"subject"?:string,"body"?:string} — use this when the note says things like "email so-and-so about X" or contains a drafted message.',
+        'Notification action shape: {"type":"notification","message":string,"when"?:string} — use this when the note mentions reminders, "don\'t forget to", or things to be reminded about.',
+        'Return an empty array if nothing is actionable.',
+        'Do NOT invent actions that are not clearly supported by the note text.',
+        'Output JSON only, no prose.',
+    ].join(' ');
+
+    let raw: string;
+    try {
+        raw = await deepseekChat({
+            jsonMode: true,
+            messages: [
+                { role: 'system', content: systemPrompt },
+                {
+                    role: 'user',
+                    content: trimmed,
+                },
+            ],
+        });
+    } catch {
+        return [];
+    }
+
+    let parsed: unknown;
+    try {
+        parsed = JSON.parse(raw);
+    } catch {
+        return [];
+    }
+
+    if (!parsed || typeof parsed !== 'object') {
+        return [];
+    }
+
+    const actionsField = (parsed as { actions?: unknown }).actions;
+    if (!Array.isArray(actionsField)) {
+        return [];
+    }
+
+    const validated: DetectedAction[] = [];
+    for (const item of actionsField) {
+        const action = validateAction(item);
+        if (action) {
+            validated.push(action);
+        }
+    }
+
+    return validated;
+}
+
 export class DetectActionsInNoteUseCase {
     constructor(private noteRepository: INoteRepository) {}
 
@@ -87,64 +147,10 @@ export class DetectActionsInNoteUseCase {
         if (!note) {
             return null;
         }
-
-        const rawText = extractNoteText(note.content);
-        const text = rawText.length > MAX_INPUT_CHARS
-            ? rawText.slice(0, MAX_INPUT_CHARS)
-            : rawText;
-
-        const systemPrompt = [
-            'You analyze personal notes and extract actionable items.',
-            'Return STRICT JSON in the exact form: {"actions": [...]}.',
-            'Each action has a "type" field which is one of: "calendar", "email", "notification".',
-            'Calendar action shape: {"type":"calendar","events":[{"title":string,"date"?:string,"notes"?:string}, ...]} — use this when the note contains todo lists, scheduled items, meetings, or deadlines. Include up to 10 events. The "date" field should be ISO-like (YYYY-MM-DD or YYYY-MM-DDTHH:mm) when known; omit it otherwise.',
-            'Email action shape: {"type":"email","to"?:string,"subject"?:string,"body"?:string} — use this when the note says things like "email so-and-so about X" or contains a drafted message.',
-            'Notification action shape: {"type":"notification","message":string,"when"?:string} — use this when the note mentions reminders, "don\'t forget to", or things to be reminded about.',
-            'Return an empty array if nothing is actionable.',
-            'Do NOT invent actions that are not clearly supported by the note text.',
-            'Output JSON only, no prose.',
-        ].join(' ');
-
-        let raw: string;
-        try {
-            raw = await deepseekChat({
-                jsonMode: true,
-                messages: [
-                    { role: 'system', content: systemPrompt },
-                    {
-                        role: 'user',
-                        content: `Title: ${note.title || 'Untitled'}\n\nContent:\n${text}`,
-                    },
-                ],
-            });
-        } catch {
+        const text = extractNoteText(note.content);
+        if (!text.trim()) {
             return { actions: [] };
         }
-
-        let parsed: unknown;
-        try {
-            parsed = JSON.parse(raw);
-        } catch {
-            return { actions: [] };
-        }
-
-        if (!parsed || typeof parsed !== 'object') {
-            return { actions: [] };
-        }
-
-        const actionsField = (parsed as { actions?: unknown }).actions;
-        if (!Array.isArray(actionsField)) {
-            return { actions: [] };
-        }
-
-        const validated: DetectedAction[] = [];
-        for (const item of actionsField) {
-            const action = validateAction(item);
-            if (action) {
-                validated.push(action);
-            }
-        }
-
-        return { actions: validated };
+        return { actions: await detectActionsInText(text) };
     }
 }

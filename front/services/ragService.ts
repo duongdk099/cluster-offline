@@ -1,9 +1,15 @@
+import type { DetectedAction } from './aiService';
 import type { ServiceResult } from './notesService';
 
 export type { ServiceResult };
 
 export type Citation = { noteId: string; chunkText: string; similarity: number };
-export type AskResponse = { answer: string; citations: Citation[] };
+export type AskResponse = {
+  answer: string;
+  citations: Citation[];
+  intent: 'question' | 'action' | 'mixed';
+  suggestedActions: DetectedAction[];
+};
 
 function apiUrl() {
   const config = useRuntimeConfig();

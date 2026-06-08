@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Editor } from '@tiptap/core';
-import { Bold, CheckSquare, Image as ImageIcon, Italic, List, Table as TableIcon } from 'lucide-vue-next';
+import { Bold, CheckSquare, Image as ImageIcon, Italic, List, ListOrdered, Table as TableIcon } from 'lucide-vue-next';
 import type { Component } from 'vue';
 import { Button } from '~/components/ui/button';
 
@@ -31,6 +31,12 @@ const insertTools = computed<ToolItem[]>(() => [
     icon: List,
     active: () => props.editor?.isActive('bulletList') ?? false,
     action: () => props.editor?.chain().focus().toggleBulletList().run(),
+  },
+  {
+    label: 'Numbered list',
+    icon: ListOrdered,
+    active: () => props.editor?.isActive('orderedList') ?? false,
+    action: () => props.editor?.chain().focus().toggleOrderedList().run(),
   },
   {
     label: props.editor?.isActive('table') ? 'Add table row' : 'Table',

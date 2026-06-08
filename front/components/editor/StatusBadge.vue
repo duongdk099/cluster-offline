@@ -15,9 +15,6 @@ const idleLabel = computed(() => {
 });
 
 const statusLabel = computed(() => {
-  if (props.status === 'optimizing') return 'Optimizing';
-  if (props.status === 'cropping') return 'Cropping';
-  if (props.status === 'rotating') return 'Rotating';
   if (props.status === 'saving') return 'Saving';
   if (props.status === 'saved') return 'Saved';
   return idleLabel.value;

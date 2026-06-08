@@ -28,9 +28,10 @@ const commandOpen = ref(false);
 
 const isAuthPage = computed(() => route.path === '/login' || route.path === '/register');
 
+const createAndOpen = useCreateAndOpenBlankNote();
 function newNote() {
   mobileSidebarOpen.value = false;
-  void router.push('/notes/new');
+  void createAndOpen.openBlankNote();
 }
 
 function logout() {

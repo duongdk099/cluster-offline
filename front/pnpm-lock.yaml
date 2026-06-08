@@ -68,9 +68,6 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
-      image-wasm:
-        specifier: file:../image-wasm/pkg
-        version: file:../image-wasm/pkg
       lucide-vue-next:
         specifier: ^0.575.0
         version: 0.575.0(vue@3.5.33(typescript@5.9.3))
@@ -89,9 +86,6 @@ importers:
       vue:
         specifier: ^3.5.0
         version: 3.5.33(typescript@5.9.3)
-      vue-advanced-cropper:
-        specifier: ^2.8.9
-        version: 2.8.9(vue@3.5.33(typescript@5.9.3))
       vue-router:
         specifier: ^4.4.0
         version: 4.6.4(vue@3.5.33(typescript@5.9.3))
@@ -135,9 +129,6 @@ importers:
       typescript:
         specifier: ^5
         version: 5.9.3
-      vite-plugin-wasm:
-        specifier: ^3.6.0
-        version: 3.6.0(vite@7.3.2(@types/node@20.19.33)(jiti@2.6.1)(lightningcss@1.31.1)(stylus@0.57.0)(terser@5.46.2)(yaml@2.8.3))
       vitest:
         specifier: ^2.1.9
         version: 2.1.9(@types/node@20.19.33)(happy-dom@20.9.0)(lightningcss@1.31.1)(stylus@0.57.0)(terser@5.46.2)
@@ -3115,9 +3106,6 @@ packages:
   class-variance-authority@0.7.1:
     resolution: {integrity: sha512-Ka+9Trutv7G8M6WT6SeiRWz792K5qEqIGEGzXKhAE6xOWAY6pPH8U+9IY3oCMv6kqTmLsv7Xh/2w2RigkePMsg==}
 
-  classnames@2.5.1:
-    resolution: {integrity: sha512-saHYOzhIQs6wy2sVxTM6bUDsQO4F50V9RQ22qBpEdCW+I+/Wmke2HOl6lS6dTpdxVhb88/I6+Hs+438c3lfUow==}
-
   clean-regexp@1.0.0:
     resolution: {integrity: sha512-GfisEZEJvzKrmGWkvfhgzcz/BllN1USeqD2V6tg14OAOgaCD2Z/PUEuxnAZ/nPvmaHRG7a8y77p1T/IRQ4D1Hw==}
     engines: {node: '>=4'}
@@ -3352,9 +3340,6 @@ packages:
       sqlite3:
         optional: true
 
-  debounce@1.2.1:
-    resolution: {integrity: sha512-XRRe6Glud4rd/ZGQfiV1ruXSfbvfJedlV9Y6zOlP+2K04vBYiJEte6stfFkCP03aMnY5tsipamumUjL14fofug==}
-
   debug@3.2.7:
     resolution: {integrity: sha512-CFjzYYAi4ThfiQvizrFQevTTXHtnCqWfe7x1AhgEscTz6ZbLbfoLRLPugTQyBth6f8ZERVUSyWHFD/7Wu4t1XQ==}
     peerDependencies:
@@ -3466,9 +3451,6 @@ packages:
 
   eastasianwidth@0.2.0:
     resolution: {integrity: sha512-I88TYZWc9XiYHRQ4/3c5rjjfgkjhLyW2luGIheGERbNQ6OY7yTybanSpDXZa8y7VUP9YmDcYa+eyq4ca7iLqWA==}
-
-  easy-bem@1.1.1:
-    resolution: {integrity: sha512-GJRqdiy2h+EXy6a8E6R+ubmqUM08BK0FWNq41k24fup6045biQ8NXxoXimiwegMQvFFV3t1emADdGNL1TlS61A==}
 
   eciesjs@0.4.18:
     resolution: {integrity: sha512-wG99Zcfcys9fZux7Cft8BAX/YrOJLJSZ3jyYPfhZHqN2E+Ffx+QXBDsv3gubEgPtV6dTzJMSQUwk1H98/t/0wQ==}
@@ -4088,9 +4070,6 @@ packages:
 
   image-meta@0.2.2:
     resolution: {integrity: sha512-3MOLanc3sb3LNGWQl1RlQlNWURE5g32aUphrDyFeCsxBTk08iE3VNe4CwsUZ0Qs1X+EfX0+r29Sxdpza4B+yRA==}
-
-  image-wasm@file:../image-wasm/pkg:
-    resolution: {directory: ../image-wasm/pkg, type: directory}
 
   import-fresh@3.3.1:
     resolution: {integrity: sha512-TR3KfrTZTYLPB6jUjfx6MF9WcWrHL9su5TObK4ZkYgBdWKPOFoSoQIdEuTuR82pmtxH2spWG9h6etwfr1pLBqQ==}
@@ -6094,11 +6073,6 @@ packages:
       vite: ^6.0.0 || ^7.0.0
       vue: ^3.5.0
 
-  vite-plugin-wasm@3.6.0:
-    resolution: {integrity: sha512-mL/QPziiIA4RAA6DkaZZzOstdwbW5jO4Vz7Zenj0wieKWBlNvIvX5L5ljum9lcUX0ShNfBgCNLKTjNkRVVqcsw==}
-    peerDependencies:
-      vite: ^2 || ^3 || ^4 || ^5 || ^6 || ^7 || ^8
-
   vite@5.4.21:
     resolution: {integrity: sha512-o5a9xKjbtuhY6Bi5S3+HvbRERmouabWbyUcpXXUA1u+GNUKoROi9byOJ8M0nHbHYHkYICiMlqxkg1KkYmm25Sw==}
     engines: {node: ^18.0.0 || >=20.0.0}
@@ -6203,12 +6177,6 @@ packages:
 
   vscode-uri@3.1.0:
     resolution: {integrity: sha512-/BpdSx+yCQGnCvecbyXdxHDkuk55/G3xwnC0GqY4gmQ3j+A+g8kzzgB4Nk/SINjqn6+waqw3EgbVF2QKExkRxQ==}
-
-  vue-advanced-cropper@2.8.9:
-    resolution: {integrity: sha512-1jc5gO674kVGpJKekoaol6ZlwaF5VYDLSBwBOUpViW0IOrrRsyLw6XNszjEqgbavvqinlKNS6Kqlom3B5M72Tw==}
-    engines: {node: '>=8', npm: '>=5'}
-    peerDependencies:
-      vue: ^3.0.0
 
   vue-bundle-renderer@2.2.0:
     resolution: {integrity: sha512-sz/0WEdYH1KfaOm0XaBmRZOWgYTEvUDt6yPYaUzl4E52qzgWLlknaPPTTZmp6benaPTlQAI/hN1x3tAzZygycg==}
@@ -9275,8 +9243,6 @@ snapshots:
     dependencies:
       clsx: 2.1.1
 
-  classnames@2.5.1: {}
-
   clean-regexp@1.0.0:
     dependencies:
       escape-string-regexp: 1.0.5
@@ -9482,8 +9448,6 @@ snapshots:
 
   db0@0.3.4: {}
 
-  debounce@1.2.1: {}
-
   debug@3.2.7:
     dependencies:
       ms: 2.1.3
@@ -9561,8 +9525,6 @@ snapshots:
   duplexer@0.1.2: {}
 
   eastasianwidth@0.2.0: {}
-
-  easy-bem@1.1.1: {}
 
   eciesjs@0.4.18:
     dependencies:
@@ -10366,8 +10328,6 @@ snapshots:
   ignore@7.0.5: {}
 
   image-meta@0.2.2: {}
-
-  image-wasm@file:../image-wasm/pkg: {}
 
   import-fresh@3.3.1:
     dependencies:
@@ -12694,10 +12654,6 @@ snapshots:
       vite: 7.3.2(@types/node@20.19.33)(jiti@2.6.1)(lightningcss@1.31.1)(stylus@0.57.0)(terser@5.46.2)(yaml@2.8.3)
       vue: 3.5.33(typescript@5.9.3)
 
-  vite-plugin-wasm@3.6.0(vite@7.3.2(@types/node@20.19.33)(jiti@2.6.1)(lightningcss@1.31.1)(stylus@0.57.0)(terser@5.46.2)(yaml@2.8.3)):
-    dependencies:
-      vite: 7.3.2(@types/node@20.19.33)(jiti@2.6.1)(lightningcss@1.31.1)(stylus@0.57.0)(terser@5.46.2)(yaml@2.8.3)
-
   vite@5.4.21(@types/node@20.19.33)(lightningcss@1.31.1)(stylus@0.57.0)(terser@5.46.2):
     dependencies:
       esbuild: 0.21.5
@@ -12802,13 +12758,6 @@ snapshots:
       - terser
 
   vscode-uri@3.1.0: {}
-
-  vue-advanced-cropper@2.8.9(vue@3.5.33(typescript@5.9.3)):
-    dependencies:
-      classnames: 2.5.1
-      debounce: 1.2.1
-      easy-bem: 1.1.1
-      vue: 3.5.33(typescript@5.9.3)
 
   vue-bundle-renderer@2.2.0:
     dependencies:

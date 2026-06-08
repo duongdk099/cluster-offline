@@ -193,28 +193,148 @@
     color: hsl(var(--primary));
   }
 
+  /* ---- Tables (Tiptap @tiptap/extension-table) ---- */
+  .prose .tableWrapper {
+    overflow-x: auto;
+    margin: 1.25em 0;
+  }
+
   .prose table {
     width: 100%;
-    border-collapse: collapse;
-    overflow: hidden;
+    border-collapse: separate;
+    border-spacing: 0;
     border: 1px solid hsl(var(--border));
     border-radius: var(--radius);
+    margin: 1.25em 0;
+    box-shadow: 0 1px 2px 0 hsl(var(--foreground) / 0.04);
   }
 
-  .prose th,
-  .prose td {
-    border: 1px solid hsl(var(--border));
-    padding: 0.75rem;
+  /* When wrapped by Tiptap's tableWrapper, the wrapper owns the outer margin */
+  .prose .tableWrapper > table {
+    margin: 0;
+  }
+
+  .prose table th,
+  .prose table td {
+    border-right: 1px solid hsl(var(--border));
+    border-bottom: 1px solid hsl(var(--border));
+    padding: 0.75rem 1rem;
     vertical-align: top;
+    position: relative;
+    line-height: 1.5;
   }
 
-  .prose th {
+  /* The typography plugin emits `.prose :where(td:first-child) { padding-left: 0 }`
+     and `:last-child { padding-right: 0 }`. Force our padding back, with
+     higher specificity than the plugin's `:where(...)` selectors. */
+  .prose table th:first-child,
+  .prose table td:first-child {
+    padding-left: 1rem;
+  }
+
+  .prose table th:last-child,
+  .prose table td:last-child {
+    border-right: none;
+    padding-right: 1rem;
+  }
+
+  .prose table tr:last-child > td,
+  .prose table tr:last-child > th {
+    border-bottom: none;
+  }
+
+  /* Round the four outer corner cells so the table's border-radius is visible
+     even with border-collapse: separate (overflow:hidden on the table itself
+     is unreliable across browsers when borders are separated). */
+  .prose table > tbody > tr:first-child > th:first-child,
+  .prose table > tbody > tr:first-child > td:first-child,
+  .prose table > thead > tr:first-child > th:first-child,
+  .prose table > thead > tr:first-child > td:first-child,
+  .prose table > tr:first-child > th:first-child,
+  .prose table > tr:first-child > td:first-child {
+    border-top-left-radius: calc(var(--radius) - 1px);
+  }
+
+  .prose table > tbody > tr:first-child > th:last-child,
+  .prose table > tbody > tr:first-child > td:last-child,
+  .prose table > thead > tr:first-child > th:last-child,
+  .prose table > thead > tr:first-child > td:last-child,
+  .prose table > tr:first-child > th:last-child,
+  .prose table > tr:first-child > td:last-child {
+    border-top-right-radius: calc(var(--radius) - 1px);
+  }
+
+  .prose table > tbody > tr:last-child > th:first-child,
+  .prose table > tbody > tr:last-child > td:first-child,
+  .prose table > tr:last-child > th:first-child,
+  .prose table > tr:last-child > td:first-child {
+    border-bottom-left-radius: calc(var(--radius) - 1px);
+  }
+
+  .prose table > tbody > tr:last-child > th:last-child,
+  .prose table > tbody > tr:last-child > td:last-child,
+  .prose table > tr:last-child > th:last-child,
+  .prose table > tr:last-child > td:last-child {
+    border-bottom-right-radius: calc(var(--radius) - 1px);
+  }
+
+  .prose table th {
     background: hsl(var(--muted));
     color: hsl(var(--muted-foreground));
     font-size: 0.75rem;
     font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    text-align: left;
+    vertical-align: middle;
+    padding: 0.625rem 1rem;
   }
 
+  /* Subtle zebra striping on body rows for readability at a glance */
+  .prose table tbody tr:nth-child(even) > td {
+    background: hsl(var(--muted) / 0.25);
+  }
+
+  .prose table tbody tr:hover > td {
+    background: hsl(var(--accent) / 0.5);
+  }
+
+  /* Active cell highlight (Tiptap adds .selectedCell when a cell is selected
+     in the editor) */
+  .prose table td.selectedCell,
+  .prose table th.selectedCell {
+    background: hsl(var(--primary) / 0.1);
+    box-shadow: inset 0 0 0 2px hsl(var(--primary) / 0.4);
+  }
+
+  /* Tiptap column-resize handle: invisible by default; make it discoverable */
+  .prose .column-resize-handle {
+    position: absolute;
+    right: -2px;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: hsl(var(--primary) / 0.6);
+    pointer-events: none;
+    border-radius: 2px;
+  }
+
+  .ProseMirror.resize-cursor {
+    cursor: col-resize;
+  }
+
+  /* Reset prose `prose-p:my-2` paragraph margins inside table cells so
+     they don't stack on top of the cell padding. */
+  .prose table th > p,
+  .prose table td > p {
+    margin: 0;
+  }
+
+  /* ---- Task list (checkbox + text alignment) ----
+     The key trick is `padding-top: calc((1lh - 1em) / 2)` on the label.
+     `1lh` is the current line-height in computed length units, so the
+     padding adapts to whatever prose size is active (`prose`, `prose-lg`, etc.)
+     and the checkbox always sits visually centered on the first text line. */
   ul[data-type="taskList"] {
     list-style: none;
     margin: 1rem 0;
@@ -224,15 +344,54 @@
   ul[data-type="taskList"] li {
     display: flex;
     align-items: flex-start;
-    gap: 0.75rem;
-    margin-bottom: 0.75rem;
+    gap: 0.625rem;
+    margin: 0.25rem 0;
+  }
+
+  ul[data-type="taskList"] li > label {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    user-select: none;
+    margin: 0;
+    cursor: pointer;
+    padding-top: calc((1lh - 1em) / 2);
+  }
+
+  ul[data-type="taskList"] li > div {
+    flex: 1 1 0%;
+    min-width: 0;
+  }
+
+  /* prose adds `prose-p:my-2` which would push the text down relative to
+     the checkbox; reset paragraph margins inside the task item content. */
+  ul[data-type="taskList"] li > div > p {
+    margin: 0;
   }
 
   ul[data-type="taskList"] input[type="checkbox"] {
-    margin-top: 0.3rem;
-    width: 1rem;
-    height: 1rem;
+    width: 1em;
+    height: 1em;
+    margin: 0;
     accent-color: hsl(var(--primary));
+    cursor: pointer;
+    vertical-align: top;
+  }
+
+  /* Completed item: fade + strike-through the text; the checkbox stays
+     full-strength so it remains tappable. */
+  ul[data-type="taskList"] li[data-checked="true"] > div {
+    color: hsl(var(--muted-foreground));
+    text-decoration: line-through;
+    text-decoration-thickness: 1px;
+  }
+
+  /* Subtle marker color so numbered/bullet lists feel consistent with the
+     muted UI scale rather than full-strength foreground. Task lists are
+     excluded because they have no marker. */
+  .prose ol > li::marker,
+  .prose ul:not([data-type="taskList"]) > li::marker {
+    color: hsl(var(--muted-foreground));
   }
 }
 

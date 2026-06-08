@@ -38,6 +38,12 @@ function closeAndNavigate(path: string) {
   void router.push(path);
 }
 
+const createAndOpen = useCreateAndOpenBlankNote();
+async function newNoteAction() {
+  open.value = false;
+  await createAndOpen.openBlankNote();
+}
+
 function onKeydown(event: KeyboardEvent) {
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
     event.preventDefault();
@@ -77,7 +83,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
           <button
             type="button"
             class="flex h-10 w-full items-center justify-between rounded-md px-2 text-sm hover:bg-accent"
-            @click="closeAndNavigate('/notes/new')"
+            @click="newNoteAction"
           >
             <span class="flex items-center gap-2"><Plus class="size-4" /> New note</span>
             <Kbd>N</Kbd>

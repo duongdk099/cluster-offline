@@ -119,6 +119,14 @@ async function handleDropOnFolder(folderId: string, event: DragEvent) {
     });
   }
 }
+
+function handleTagDragStart(event: DragEvent, tag: { id: string; name: string }) {
+  if (!event.dataTransfer) return;
+  event.dataTransfer.effectAllowed = 'copy';
+  event.dataTransfer.setData('application/x-notesaides-tag', JSON.stringify({ id: tag.id, name: tag.name }));
+  // Also expose the readable name; some browsers expect at least one standard MIME type.
+  event.dataTransfer.setData('text/x-notesaides-tag-name', tag.name);
+}
 </script>
 
 <template>
@@ -188,9 +196,11 @@ async function handleDropOnFolder(folderId: string, event: DragEvent) {
             v-for="tag in tags ?? []"
             :key="tag.id"
             type="button"
-            :class="navItemClass(selectedTag === tag.id)"
+            :class="[navItemClass(selectedTag === tag.id), 'cursor-grab active:cursor-grabbing']"
             :title="`#${tag.name}`"
+            draggable="true"
             @click="selectTag(tag.id)"
+            @dragstart="handleTagDragStart($event, tag)"
           >
             <span class="flex min-w-0 items-center gap-2">
               <Tags class="size-4" />

@@ -1,5 +1,3 @@
-import wasm from 'vite-plugin-wasm';
-
 export default defineNuxtConfig({
   compatibilityDate: '2025-04-29',
   devtools: { enabled: true },
@@ -28,11 +26,6 @@ export default defineNuxtConfig({
       apiUrl: process.env.NUXT_PUBLIC_API_URL || 'http://localhost:3001',
       wsUrl: process.env.NUXT_PUBLIC_WS_URL || 'ws://localhost:3001/ws',
     },
-  },
-  vite: {
-    plugins: [wasm()],
-    optimizeDeps: { exclude: ['image-wasm'] },
-    server: { fs: { allow: ['..'] } },
   },
   app: {
     head: {

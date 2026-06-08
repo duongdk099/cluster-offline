@@ -2,6 +2,7 @@ import type { JSONContent } from '@tiptap/core';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
 import { storeToRefs } from 'pinia';
 import type { MaybeRefOrGetter } from 'vue';
+import { toast } from 'vue-sonner';
 import type { Note } from '~/types/notes';
 import * as notesService from '~/services/notesService';
 
@@ -114,6 +115,35 @@ export function useCreateNote() {
   });
 }
 
+// Create an empty note and navigate straight to /notes/{id}, so the user
+// never lands on /notes/new — the new note exists in the DB the moment they
+// arrive at the editor. Pass { replace: true } from the /notes/new fallback
+// page so that URL never sticks in browser history.
+export function useCreateAndOpenBlankNote() {
+  const router = useRouter();
+  const createMutation = useCreateNote();
+
+  const emptyContent: JSONContent = {
+    type: 'doc',
+    content: [{ type: 'paragraph' }],
+  };
+
+  async function openBlankNote({ replace = false }: { replace?: boolean } = {}): Promise<void> {
+    if (createMutation.isPending.value) return;
+    try {
+      const note = await createMutation.mutateAsync({ title: '', content: emptyContent });
+      const path = `/notes/${note.id}`;
+      await (replace ? router.replace(path) : router.push(path));
+    } catch (error) {
+      toast.error('Failed to create note', {
+        description: error instanceof Error ? error.message : undefined,
+      });
+    }
+  }
+
+  return { openBlankNote, isPending: createMutation.isPending };
+}
+
 export function useUpdateNote() {
   const queryClient = useQueryClient();
   const token = useToken();
@@ -126,6 +156,11 @@ export function useUpdateNote() {
         old ? old.map((note) => (note.id === updatedNote.id ? updatedNote : note)) : old,
       );
       queryClient.setQueryData(['note', updatedNote.id], updatedNote);
+      // An update can attach a brand-new tag or change the folder, neither of
+      // which is reflected by the per-note cache update above — refresh the
+      // sidebar lists so they don't go stale.
+      queryClient.invalidateQueries({ queryKey: ['tags'] });
+      queryClient.invalidateQueries({ queryKey: ['folders'] });
     },
     onError: () => {
       queryClient.invalidateQueries({ queryKey: ['notes'] });

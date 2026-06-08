@@ -71,8 +71,9 @@ function goToNote(note: Note) {
   void router.push(`/notes/${note.id}`);
 }
 
+const createAndOpen = useCreateAndOpenBlankNote();
 function newNote() {
-  void router.push('/notes/new');
+  void createAndOpen.openBlankNote();
 }
 
 // A reactive key that changes whenever the visible result set changes

@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { jwt } from 'hono/jwt';
+import { randomUUID } from 'crypto';
 import { CreateNoteUseCase } from '../application/CreateNote';
 import { GetNoteUseCase } from '../application/GetNote';
 import { UpdateNoteUseCase } from '../application/UpdateNote';
@@ -11,6 +12,7 @@ import { SuggestTagsForNoteUseCase } from '../application/SuggestTagsForNote';
 import { DetectActionsInNoteUseCase } from '../application/DetectActionsInNote';
 import { ChunkAndEmbedNoteUseCase } from '../application/ChunkAndEmbedNote';
 import { DrizzleNoteRepository } from '../infrastructure/DrizzleNoteRepository';
+import { client } from '../infrastructure/db';
 import { notifyChange } from '../infrastructure/websocket';
 import { config } from '../config';
 
@@ -451,6 +453,31 @@ noteRoutes.post('/:id/ai/extract-actions', async (c) => {
     } catch (e: unknown) {
         return c.json({ error: e instanceof Error ? e.message : 'Extract actions failed' }, 500);
     }
+});
+
+noteRoutes.post('/:id/share', async (c) => {
+  const payload = c.get('jwtPayload') as { sub: string };
+  const noteId = c.req.param('id');
+
+  // Verify the note exists and belongs to this user
+  const note = await noteRepository.findById(noteId, payload.sub);
+  if (!note) return c.json({ error: 'Note not found' }, 404);
+
+  // Idempotent: return the existing token if one exists for this note
+  const existing = await client`
+    SELECT token FROM share_tokens WHERE note_id = ${noteId} LIMIT 1
+  `;
+  if (existing.length > 0) {
+    return c.json({ token: existing[0].token as string });
+  }
+
+  const id = randomUUID();
+  const token = (randomUUID() + randomUUID()).replace(/-/g, '').slice(0, 64);
+  await client`
+    INSERT INTO share_tokens (id, note_id, token, created_at)
+    VALUES (${id}, ${noteId}, ${token}, NOW())
+  `;
+  return c.json({ token });
 });
 
 export default noteRoutes;

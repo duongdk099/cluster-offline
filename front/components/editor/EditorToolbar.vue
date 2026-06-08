@@ -19,25 +19,42 @@ type ToolItem = {
   action: () => void;
 };
 
+const activeList = computed<'bullet' | 'ordered' | 'task' | null>(() => {
+  if (!props.editor) return null;
+  if (props.editor.isActive('bulletList')) return 'bullet';
+  if (props.editor.isActive('orderedList')) return 'ordered';
+  if (props.editor.isActive('taskList')) return 'task';
+  return null;
+});
+
+const listIcon = computed(() => {
+  switch (activeList.value) {
+    case 'ordered': return ListOrdered;
+    case 'task': return CheckSquare;
+    default: return List;
+  }
+});
+
+const listLabel = computed(() => {
+  switch (activeList.value) {
+    case 'bullet': return 'Switch to numbered list';
+    case 'ordered': return 'Switch to checklist';
+    case 'task': return 'Remove list';
+    default: return 'Add bullet list';
+  }
+});
+
+function cycleList() {
+  if (!props.editor) return;
+  switch (activeList.value) {
+    case 'bullet':  props.editor.chain().focus().toggleOrderedList().run(); break;
+    case 'ordered': props.editor.chain().focus().toggleTaskList().run(); break;
+    case 'task':    props.editor.chain().focus().toggleTaskList().run(); break;
+    default:        props.editor.chain().focus().toggleBulletList().run();
+  }
+}
+
 const insertTools = computed<ToolItem[]>(() => [
-  {
-    label: 'Checklist',
-    icon: CheckSquare,
-    active: () => props.editor?.isActive('taskList') ?? false,
-    action: () => props.editor?.chain().focus().toggleTaskList().run(),
-  },
-  {
-    label: 'Bullet list',
-    icon: List,
-    active: () => props.editor?.isActive('bulletList') ?? false,
-    action: () => props.editor?.chain().focus().toggleBulletList().run(),
-  },
-  {
-    label: 'Numbered list',
-    icon: ListOrdered,
-    active: () => props.editor?.isActive('orderedList') ?? false,
-    action: () => props.editor?.chain().focus().toggleOrderedList().run(),
-  },
   {
     label: props.editor?.isActive('table') ? 'Add table row' : 'Table',
     icon: TableIcon,
@@ -78,6 +95,19 @@ function toolVariant(tool: ToolItem) {
 
 <template>
   <div v-if="editor" class="flex max-w-full items-center gap-1 overflow-x-auto rounded-md border bg-background p-1 scrollbar-thin">
+    <div class="flex items-center gap-1">
+      <Button
+        :variant="activeList ? 'secondary' : 'ghost'"
+        size="icon"
+        :title="listLabel"
+        @click="cycleList"
+      >
+        <component :is="listIcon" class="size-4" />
+      </Button>
+    </div>
+
+    <div class="mx-1 h-5 w-px bg-border" />
+
     <div class="flex items-center gap-1">
       <Button
         v-for="tool in insertTools"

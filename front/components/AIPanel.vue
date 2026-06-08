@@ -14,9 +14,7 @@ const emit = defineEmits<{
   'add-tag': [name: string];
 }>();
 
-const isOpen = ref(false);
-const triggerRef = ref<HTMLElement | null>(null);
-const panelStyle = ref<Record<string, string>>({});
+const open = ref(false);
 
 const summary = ref<string | null>(null);
 const suggestedTags = ref<string[]>([]);
@@ -29,63 +27,6 @@ const detectActionsMutation = useDetectActionsInNote();
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback;
 }
-
-function recomputePosition() {
-  if (!triggerRef.value) return;
-  const rect = triggerRef.value.getBoundingClientRect();
-  const panelWidth = 384; // w-96
-  const viewportRight = window.innerWidth - 8;
-  // Align right edge of panel with right edge of trigger by default.
-  let left = rect.right - panelWidth;
-  if (left + panelWidth > viewportRight) left = viewportRight - panelWidth;
-  if (left < 8) left = 8;
-  panelStyle.value = {
-    position: 'fixed',
-    top: `${rect.bottom + 8}px`,
-    left: `${left}px`,
-    width: `${panelWidth}px`,
-    zIndex: '60',
-  };
-}
-
-function togglePanel() {
-  isOpen.value = !isOpen.value;
-  if (isOpen.value) {
-    nextTick(recomputePosition);
-  }
-}
-
-function closePanel() {
-  isOpen.value = false;
-}
-
-function onDocumentClick(event: MouseEvent) {
-  if (!isOpen.value) return;
-  const target = event.target as Node | null;
-  if (!target) return;
-  if (triggerRef.value && triggerRef.value.contains(target)) return;
-  const panelEl = document.getElementById('ai-panel-popover');
-  if (panelEl && panelEl.contains(target)) return;
-  closePanel();
-}
-
-function onKeydown(event: KeyboardEvent) {
-  if (event.key === 'Escape' && isOpen.value) closePanel();
-}
-
-onMounted(() => {
-  document.addEventListener('mousedown', onDocumentClick);
-  document.addEventListener('keydown', onKeydown);
-  window.addEventListener('resize', recomputePosition);
-  window.addEventListener('scroll', recomputePosition, true);
-});
-
-onBeforeUnmount(() => {
-  document.removeEventListener('mousedown', onDocumentClick);
-  document.removeEventListener('keydown', onKeydown);
-  window.removeEventListener('resize', recomputePosition);
-  window.removeEventListener('scroll', recomputePosition, true);
-});
 
 // Reset state when switching to a different note.
 watch(() => props.noteId, () => {
@@ -251,34 +192,34 @@ function isNotificationAction(action: DetectedAction): action is Extract<Detecte
 </script>
 
 <template>
-  <div class="relative inline-flex">
-    <Button
-      ref="triggerRef"
-      variant="ghost"
-      size="icon"
-      title="AI assist"
-      :aria-expanded="isOpen"
-      aria-haspopup="dialog"
-      @click="togglePanel"
-    >
-      <Sparkles class="size-4" />
-    </Button>
+  <Button variant="ghost" size="icon" title="AI assist" @click="open = true">
+    <Sparkles class="size-4" />
+  </Button>
 
-    <Teleport to="body">
+  <Teleport to="body">
+    <div
+      v-if="open"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm"
+      @click.self="open = false"
+      @keydown.esc="open = false"
+    >
       <div
-        v-if="isOpen"
-        id="ai-panel-popover"
-        :style="panelStyle"
-        class="max-h-[80vh] overflow-y-auto rounded-md border bg-popover text-popover-foreground shadow-lg"
+        class="flex max-h-[85vh] w-full max-w-lg flex-col rounded-lg border bg-popover text-popover-foreground shadow-2xl"
         role="dialog"
+        aria-modal="true"
         aria-label="AI assist"
       >
-        <div class="space-y-4 p-4">
-          <div class="flex items-center gap-2">
+        <div class="border-b px-5 py-4">
+          <h2 class="flex items-center gap-2 text-base font-semibold">
             <Sparkles class="size-4 text-primary" />
-            <span class="text-sm font-semibold">AI assist</span>
-          </div>
+            AI assist
+          </h2>
+          <p class="mt-1 text-xs text-muted-foreground">
+            Summarize, auto-tag, or detect actions in this note.
+          </p>
+        </div>
 
+        <div class="flex-1 space-y-4 overflow-y-auto p-4">
           <!-- Summarize -->
           <section class="space-y-2">
             <div class="flex items-center justify-between">
@@ -450,7 +391,11 @@ function isNotificationAction(action: DetectedAction): action is Extract<Detecte
             </p>
           </section>
         </div>
+
+        <div class="flex justify-end border-t px-5 py-3">
+          <Button variant="ghost" size="sm" @click="open = false">Close</Button>
+        </div>
       </div>
-    </Teleport>
-  </div>
+    </div>
+  </Teleport>
 </template>

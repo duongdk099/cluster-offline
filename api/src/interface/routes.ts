@@ -480,4 +480,30 @@ noteRoutes.post('/:id/share', async (c) => {
   return c.json({ token });
 });
 
+noteRoutes.get('/:id/share', async (c) => {
+  const payload = c.get('jwtPayload') as { sub: string };
+  const noteId = c.req.param('id');
+
+  // Verify ownership before disclosing share state
+  const note = await noteRepository.findById(noteId, payload.sub);
+  if (!note) return c.json({ error: 'Note not found' }, 404);
+
+  const rows = await client`
+    SELECT token FROM share_tokens WHERE note_id = ${noteId} LIMIT 1
+  `;
+  return c.json({ token: rows.length > 0 ? (rows[0].token as string) : null });
+});
+
+noteRoutes.delete('/:id/share', async (c) => {
+  const payload = c.get('jwtPayload') as { sub: string };
+  const noteId = c.req.param('id');
+
+  // Verify ownership before deleting
+  const note = await noteRepository.findById(noteId, payload.sub);
+  if (!note) return c.json({ error: 'Note not found' }, 404);
+
+  await client`DELETE FROM share_tokens WHERE note_id = ${noteId}`;
+  return c.json({ token: null });
+});
+
 export default noteRoutes;

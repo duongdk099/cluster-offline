@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { FileText, Globe, Link2, Share, Share2, Type } from 'lucide-vue-next';
+import { Copy, FileText, Link2, Share, Share2, Type } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { toast } from 'vue-sonner';
 import { Button } from '~/components/ui/button';
@@ -11,10 +11,13 @@ const props = defineProps<{
   note: Note;
 }>();
 
+type Visibility = 'private' | 'public';
+
 const open = ref(false);
-const isCreatingLink = ref(false);
 const publicUrl = ref<string | null>(null);
 const canSystemShare = ref(false);
+const visibility = ref<Visibility>('private');
+const isUpdatingVisibility = ref(false);
 
 const config = useRuntimeConfig();
 const apiUrl = String(config.public.apiUrl || 'http://localhost:3001').replace(/\/$/, '');
@@ -33,7 +36,30 @@ onMounted(() => {
 // Reset state when switching notes.
 watch(() => props.note?.id, () => {
   publicUrl.value = null;
-  isCreatingLink.value = false;
+  visibility.value = 'private';
+  isUpdatingVisibility.value = false;
+});
+
+// Load existing share state when the modal opens.
+watch(open, async (isOpen) => {
+  if (!isOpen) return;
+  if (!token.value || !props.note?.id) return;
+  try {
+    const res = await fetch(`${apiUrl}/notes/${props.note.id}/share`, {
+      headers: { Authorization: `Bearer ${token.value}` },
+    });
+    if (!res.ok) return;
+    const data = await res.json() as { token: string | null };
+    if (data.token) {
+      visibility.value = 'public';
+      publicUrl.value = `${window.location.origin}/share/${data.token}`;
+    } else {
+      visibility.value = 'private';
+      publicUrl.value = null;
+    }
+  } catch {
+    // ignore — keep defaults
+  }
 });
 
 function noteUrl() {
@@ -77,40 +103,37 @@ async function handleSystemShare() {
   }
 }
 
-async function handleCreatePublicLink() {
-  if (publicUrl.value) {
-    try {
-      await navigator.clipboard.writeText(publicUrl.value);
-      toast.success('Public link copied to clipboard');
-    } catch (error) {
-      toast.error('Could not copy link', {
-        description: getErrorMessage(error, 'Clipboard access failed.'),
-      });
-    }
-    return;
-  }
-
-  isCreatingLink.value = true;
+async function setVisibility(next: Visibility) {
+  if (next === visibility.value || isUpdatingVisibility.value) return;
+  if (!props.note?.id || !token.value) return;
+  isUpdatingVisibility.value = true;
   try {
-    const res = await fetch(`${apiUrl}/notes/${props.note.id}/share`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token.value ?? ''}`,
-      },
-    });
-    if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      throw new Error(text || `Request failed with status ${res.status}`);
+    if (next === 'public') {
+      const res = await fetch(`${apiUrl}/notes/${props.note.id}/share`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token.value}`, 'Content-Type': 'application/json' },
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json() as { token: string };
+      visibility.value = 'public';
+      publicUrl.value = `${window.location.origin}/share/${data.token}`;
+      toast.success('Public link created');
+    } else {
+      const res = await fetch(`${apiUrl}/notes/${props.note.id}/share`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token.value}` },
+      });
+      if (!res.ok) throw new Error(await res.text());
+      visibility.value = 'private';
+      publicUrl.value = null;
+      toast.success('Sharing disabled');
     }
-    const data = await res.json() as { token: string };
-    publicUrl.value = `${window.location.origin}/share/${data.token}`;
-    toast.success('Public link created');
-  } catch (error) {
-    toast.error('Could not create public link', {
-      description: getErrorMessage(error, 'The share request failed.'),
+  } catch (e) {
+    toast.error('Failed to update sharing', {
+      description: e instanceof Error ? e.message : undefined,
     });
   } finally {
-    isCreatingLink.value = false;
+    isUpdatingVisibility.value = false;
   }
 }
 
@@ -195,6 +218,58 @@ async function exportNote(noteId: string, format: 'md' | 'pdf' | 'docx') {
         </div>
 
         <div class="space-y-1 p-3">
+          <div class="space-y-1 px-1 py-2">
+            <p class="px-2 text-[11px] font-mono uppercase tracking-wide text-muted-foreground">
+              Visibility
+            </p>
+            <label
+              class="flex cursor-pointer items-start gap-3 rounded-md px-2 py-2 hover:bg-accent"
+              :class="visibility === 'private' ? 'bg-accent' : ''"
+            >
+              <input
+                type="radio"
+                name="share-visibility"
+                value="private"
+                :checked="visibility === 'private'"
+                :disabled="isUpdatingVisibility"
+                class="mt-0.5"
+                @change="setVisibility('private')"
+              >
+              <span class="flex flex-col">
+                <span class="text-sm font-medium">Private</span>
+                <span class="text-xs text-muted-foreground">Only you can open this note.</span>
+              </span>
+            </label>
+            <label
+              class="flex cursor-pointer items-start gap-3 rounded-md px-2 py-2 hover:bg-accent"
+              :class="visibility === 'public' ? 'bg-accent' : ''"
+            >
+              <input
+                type="radio"
+                name="share-visibility"
+                value="public"
+                :checked="visibility === 'public'"
+                :disabled="isUpdatingVisibility"
+                class="mt-0.5"
+                @change="setVisibility('public')"
+              >
+              <span class="flex flex-col">
+                <span class="text-sm font-medium">Anyone with the link</span>
+                <span class="text-xs text-muted-foreground">Anyone who has the URL can view this note (read-only).</span>
+              </span>
+            </label>
+
+            <div v-if="visibility === 'public' && publicUrl" class="mt-2 flex items-center gap-2 rounded-md border bg-muted/30 p-2">
+              <code class="min-w-0 flex-1 truncate text-xs">{{ publicUrl }}</code>
+              <Button size="sm" variant="ghost" @click="copyPublicUrl">
+                <Copy class="size-3.5" />
+                Copy
+              </Button>
+            </div>
+          </div>
+
+          <div class="my-1 h-px bg-border" />
+
           <Button
             variant="ghost"
             class="h-9 w-full justify-start gap-2"
@@ -221,38 +296,6 @@ async function exportNote(noteId: string, format: 'md' | 'pdf' | 'docx') {
           >
             <Share2 class="size-4" />
             <span>Share via system…</span>
-          </Button>
-
-          <div class="my-1 h-px bg-border" />
-
-          <div v-if="publicUrl" class="space-y-1 px-2 py-1">
-            <span class="text-xs font-medium text-muted-foreground">Public link</span>
-            <div class="flex items-center gap-1">
-              <code
-                class="flex-1 truncate select-all rounded bg-muted px-2 py-1 font-mono text-xs"
-                :title="publicUrl"
-              >
-                {{ publicUrl }}
-              </code>
-              <Button
-                variant="ghost"
-                size="sm"
-                class="h-7 shrink-0"
-                @click="copyPublicUrl"
-              >
-                Copy
-              </Button>
-            </div>
-          </div>
-          <Button
-            v-else
-            variant="ghost"
-            class="h-9 w-full justify-start gap-2"
-            :disabled="isCreatingLink"
-            @click="handleCreatePublicLink"
-          >
-            <Globe class="size-4" />
-            <span>{{ isCreatingLink ? 'Creating link…' : 'Create public link' }}</span>
           </Button>
 
           <div class="my-1 h-px bg-border" />
